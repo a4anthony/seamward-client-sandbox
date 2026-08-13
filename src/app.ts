@@ -13,7 +13,7 @@ interface CandidateWebhook {
   event_type: "candidate.create";
   id: string;
   full_name: string;
-  email_address?: string;
+  email_address: string;
   candidate_email?: string;
   external_reference: string;
 }

@@ -38,7 +38,7 @@ Start the service:
 pnpm dev
 ```
 
-The default address is `http://127.0.0.1:4100`.
+The default address is `http://127.0.0.1:4200` so it can run beside the local RelayGuard API on port `4100`.
 
 ## Send traffic
 

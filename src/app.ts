@@ -13,7 +13,8 @@ interface CandidateWebhook {
   event_type: "candidate.create";
   id: string;
   full_name: string;
-  email_address: string;
+  email_address?: string;
+  candidate_email?: string;
   external_reference: string;
 }
 
@@ -25,12 +26,15 @@ function readCandidate(payload: Json): CandidateWebhook | null {
     value.event_type !== "candidate.create" ||
     typeof value.id !== "string" ||
     typeof value.full_name !== "string" ||
-    typeof value.email_address !== "string" ||
+    (typeof value.email_address !== "string" && typeof value.candidate_email !== "string") ||
     typeof value.external_reference !== "string"
   ) {
     return null;
   }
-  return value as unknown as CandidateWebhook;
+  return {
+    ...value,
+    email_address: value.email_address ?? value.candidate_email,
+  } as unknown as CandidateWebhook;
 }
 
 export interface BuildCandidateAppOptions {

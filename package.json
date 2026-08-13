@@ -1,0 +1,32 @@
+{
+  "name": "relayguard-client-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs src/main.ts",
+    "start": "node --env-file-if-exists=.env dist/src/main.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "send:healthy": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-healthy.ts",
+    "send:silent": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-silent-failure.ts",
+    "send:recovery": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-recovery.ts",
+    "reset": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/reset.ts"
+  },
+  "dependencies": {
+    "@relayguard/collector": "https://github.com/a4anthony/relayguard-client-sandbox/releases/download/collector-v0.1.0-alpha.1/relayguard-collector-0.1.0-alpha.1.tgz",
+    "@relayguard/contracts": "https://github.com/a4anthony/relayguard-client-sandbox/releases/download/collector-v0.1.0-alpha.1/relayguard-contracts-0.1.0-alpha.1.tgz",
+    "fastify": "5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

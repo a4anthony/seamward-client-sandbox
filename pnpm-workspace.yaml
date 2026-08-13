@@ -1,0 +1,10 @@
+packages:
+  - "."
+
+blockExoticSubdeps: false
+
+allowBuilds:
+  esbuild: true
+
+overrides:
+  "@relayguard/contracts": "https://github.com/a4anthony/relayguard-client-sandbox/releases/download/collector-v0.1.0-alpha.1/relayguard-contracts-0.1.0-alpha.1.tgz"

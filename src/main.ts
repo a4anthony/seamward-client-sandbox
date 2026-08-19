@@ -1,5 +1,5 @@
 import { buildCandidateApp } from "./app.js";
-import { createConfiguredCollector } from "./relayguard.js";
+import { createConfiguredCollector } from "./seamward.js";
 
 const { collector, integrationKey } = createConfiguredCollector();
 const { app } = buildCandidateApp({
@@ -17,4 +17,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-console.log(`RelayGuard client sandbox listening on http://127.0.0.1:${port}`);
+console.log(`Candidate API listening on http://127.0.0.1:${port}`);

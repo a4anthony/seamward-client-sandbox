@@ -30,7 +30,7 @@ describe("healthy candidate ingestion", () => {
     expect(harness.envelopes[0]).toMatchObject({
       eventType: "candidate.create",
       deployment: {
-        service: "relayguard-client-sandbox",
+        service: "candidate-api",
         release: "test-release",
       },
       outcome: {

@@ -1,5 +1,9 @@
 node_modules/
 dist/
+!vendor/collector/dist/
+!vendor/collector/dist/**
+!vendor/contracts/dist/
+!vendor/contracts/dist/**
 .data/
 .env
 .env.*

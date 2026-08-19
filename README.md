@@ -1,18 +1,18 @@
-# RelayGuard Client Sandbox
+# Seamward Client Sandbox
 
-A standalone, production-shaped ATS webhook consumer for exercising RelayGuard onboarding, observation ingestion, expected outcomes, incidents, repair validation, and GitHub delivery.
+A standalone, production-shaped ATS webhook consumer for demonstrating Seamward onboarding, privacy-safe observation, expected outcomes, incident evidence, repair validation, and GitHub delivery.
 
-This repository deliberately lives outside the RelayGuard monorepo. It installs versioned public collector artifacts and can run its tests and CI without local workspace links.
+This repository deliberately lives outside the Seamward monorepo. It installs extracted, versioned Seamward collector artifacts from `vendor/` and can run its tests and CI without local workspace links.
 
 ## What it models
 
-The service accepts `candidate.create` webhooks and persists candidates. RelayGuard observes the request structure, bounded outcome metadata, and deployment context without receiving raw candidate values.
+The service accepts `candidate.create` webhooks and persists candidates. Seamward observes the request structure, bounded outcome metadata, and deployment context without receiving raw candidate values.
 
-The sandbox supports four deterministic scenarios:
+The sandbox supports five deterministic scenarios:
 
 - healthy candidate creation;
 - a silent-success defect that returns `202` without storing the candidate;
-- a provider field rename;
+- a provider field rename that still returns HTTP `202` without persisting the candidate;
 - a provider primitive type change;
 - an authentication failure.
 
@@ -20,8 +20,8 @@ The sandbox supports four deterministic scenarios:
 
 - Node.js 22 or newer
 - pnpm 11.19.0
-- a running RelayGuard API
-- a RelayGuard Source key, Integration key, and server-side ingest token
+- a Seamward workspace
+- a Seamward Source key, Integration key, and server-side ingest token
 
 ## Install
 
@@ -30,7 +30,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Replace the three RelayGuard credential placeholders in `.env` with values from your workspace integration. The ingest token is secret and must remain server-side.
+Replace the three Seamward credential placeholders in `.env` with values from your workspace integration. Set `SEAMWARD_COMMIT_SHA` to the current Git commit so incident evidence and GitHub delivery refer to the same source. The ingest token is secret and must remain server-side.
 
 Start the service:
 
@@ -38,7 +38,7 @@ Start the service:
 pnpm dev
 ```
 
-The default address is `http://127.0.0.1:4200` so it can run beside the local RelayGuard API on port `4100`.
+The default address is `http://127.0.0.1:4200`. The example configuration sends redacted observations to the live Seamward ingest endpoint at `https://api.seamward.com/ingest`.
 
 ## Send traffic
 
@@ -48,13 +48,21 @@ Healthy event:
 pnpm send:healthy
 ```
 
+Provider field rename:
+
+```bash
+pnpm send:rename
+```
+
+The provider sends `candidate_email` instead of `email_address`. The consumer still returns HTTP `202`, but it does not persist the candidate and it emits no `candidate` business outcome. This is the recommended founder-demo failure because it produces both structural drift and a missing expected outcome while ordinary status-code monitoring sees success.
+
 Silent-success event:
 
 ```bash
 pnpm send:silent
 ```
 
-The silent command returns HTTP `202`, but the candidate is not persisted and no `candidate` business outcome is emitted. With this RelayGuard rule:
+The silent command returns HTTP `202`, but the candidate is not persisted and no `candidate` business outcome is emitted. Use this Seamward rule for either silent-success scenario:
 
 ```text
 When candidate.create is observed, a candidate must appear within 1 minute.
@@ -62,7 +70,7 @@ When candidate.create is observed, a candidate must appear within 1 minute.
 
 reconciliation should open one missing-business-outcome incident after the delay.
 
-To recover, pass the candidate ID from the silent-failure run:
+To recover, pass the candidate ID from the field-rename or silent-failure run:
 
 ```bash
 pnpm send:recovery -- cand_123
@@ -86,6 +94,10 @@ Tests assert that healthy outcomes, silent failures, schema changes, and authent
 
 ## Collector prerelease
 
-This sandbox currently installs `@relayguard/collector@0.1.0-alpha.1` and `@relayguard/contracts@0.1.0-alpha.1` from the repository's public prerelease assets. SHA-256 checksums are attached to the release. This is a temporary distribution path until the RelayGuard npm organization scope is available.
+This sandbox installs vendored `@seamward/collector@0.1.0-alpha.1` and `@seamward/contracts@0.1.0-alpha.1` packages built from the official Seamward monorepo. Their source tarballs and checksums are retained in `vendor/`. This is a temporary distribution path until the Seamward npm organization scope is available.
 
 The alpha collector is for local evaluation only and is not a production support commitment.
+
+## Founder demo
+
+Follow `DEMO_RUNBOOK.md` for the live Seamward and GitHub preflight, exact terminal commands, expected output, recording order, and reset procedure.

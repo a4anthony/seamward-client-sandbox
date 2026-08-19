@@ -1,5 +1,5 @@
-import type { ConnectedCollector } from "@relayguard/collector";
-import type { Json } from "@relayguard/contracts";
+import type { ConnectedCollector } from "@seamward/collector";
+import type { Json } from "@seamward/contracts";
 import Fastify from "fastify";
 import { CandidateStore } from "./candidate-store.js";
 import {
@@ -33,6 +33,30 @@ function readCandidate(payload: Json): CandidateWebhook | null {
   return value as unknown as CandidateWebhook;
 }
 
+function readSourceEventId(payload: Json): string {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "invalid-event";
+  }
+  const value = payload as Record<string, Json>;
+  return typeof value.event_id === "string" ? value.event_id : "invalid-event";
+}
+
+function hasRenamedCandidateEmail(payload: Json): boolean {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return false;
+  }
+  const value = payload as Record<string, Json>;
+  return (
+    typeof value.event_id === "string" &&
+    value.event_type === "candidate.create" &&
+    typeof value.id === "string" &&
+    typeof value.full_name === "string" &&
+    typeof value.candidate_email === "string" &&
+    typeof value.email_address === "undefined" &&
+    typeof value.external_reference === "string"
+  );
+}
+
 export interface BuildCandidateAppOptions {
   collector: ConnectedCollector;
   integrationKey: string;
@@ -54,7 +78,7 @@ export function buildCandidateApp({
     { integrationKey, routeTemplate: "/webhooks/candidates" },
     async (payload) => {
       const event = readCandidate(payload);
-      const sourceEventId = event?.event_id ?? "invalid-event";
+      const sourceEventId = readSourceEventId(payload);
 
       if (failures.current() === "auth-failure") {
         return {
@@ -62,6 +86,15 @@ export function buildCandidateApp({
           eventType: "candidate.create",
           correlation: { sourceEventId },
           outcome: { accepted: false },
+        };
+      }
+
+      if (!event && hasRenamedCandidateEmail(payload)) {
+        return {
+          statusCode: 202,
+          eventType: "candidate.create",
+          correlation: { sourceEventId },
+          outcome: { accepted: true },
         };
       }
 

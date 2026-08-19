@@ -1,5 +1,5 @@
 {
-  "name": "relayguard-client-sandbox",
+  "name": "seamward-client-sandbox",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,13 +14,14 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "send:healthy": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-healthy.ts",
+    "send:rename": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-provider-rename.ts",
     "send:silent": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-silent-failure.ts",
     "send:recovery": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/send-recovery.ts",
     "reset": "node --env-file-if-exists=.env node_modules/tsx/dist/cli.mjs scripts/reset.ts"
   },
   "dependencies": {
-    "@relayguard/collector": "https://github.com/a4anthony/relayguard-client-sandbox/releases/download/collector-v0.1.0-alpha.1/relayguard-collector-0.1.0-alpha.1.tgz",
-    "@relayguard/contracts": "https://github.com/a4anthony/relayguard-client-sandbox/releases/download/collector-v0.1.0-alpha.1/relayguard-contracts-0.1.0-alpha.1.tgz",
+    "@seamward/collector": "file:vendor/collector",
+    "@seamward/contracts": "file:vendor/contracts",
     "fastify": "5.6.1"
   },
   "devDependencies": {

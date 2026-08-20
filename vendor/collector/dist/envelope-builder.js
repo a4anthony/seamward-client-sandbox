@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { ENVELOPE_VERSION, parseEnvelope, schemaFingerprint, shapeOf, } from "@seamward/contracts";
+import { createHmac, randomUUID } from "node:crypto";
+import { ENVELOPE_VERSION, OPERATION_IDENTITY_VERSION, defaultPayloadLocation, parseEnvelope, schemaFingerprint, shapeOf, } from "@seamward/contracts";
 import { keyedHash } from "./redact.js";
 export function buildEnvelope(input, policy, deps = {}) {
     const now = deps.now ?? (() => new Date());
@@ -14,6 +14,12 @@ export function buildEnvelope(input, policy, deps = {}) {
     if (input.correlation?.idempotencyKey) {
         correlation.idempotencyKeyHash = keyedHash(input.correlation.idempotencyKey, policy.hashKey);
     }
+    correlation.hashNamespace =
+        policy.hashNamespace ??
+            `key:${createHmac("sha256", policy.hashKey)
+                .update("seamward-hash-namespace-v1", "utf8")
+                .digest("hex")
+                .slice(0, 32)}`;
     const outcome = input.outcome
         ? {
             accepted: input.outcome.accepted,
@@ -21,7 +27,9 @@ export function buildEnvelope(input, policy, deps = {}) {
                 ? { businessObjectType: input.outcome.businessObjectType }
                 : {}),
             ...(input.outcome.businessObjectId
-                ? { businessObjectIdHash: keyedHash(input.outcome.businessObjectId, policy.hashKey) }
+                ? {
+                    businessObjectIdHash: keyedHash(input.outcome.businessObjectId, policy.hashKey),
+                }
                 : {}),
         }
         : { accepted: input.statusCode < 400 };
@@ -34,16 +42,20 @@ export function buildEnvelope(input, policy, deps = {}) {
         direction: input.direction,
         protocol: input.protocol,
         occurredAt: now().toISOString(),
+        operationIdentityVersion: OPERATION_IDENTITY_VERSION,
         ...(input.deployment ? { deployment: input.deployment } : {}),
         ...(input.eventType ? { eventType: input.eventType } : {}),
         correlation,
         contract: {
-            ...(input.declaredContractVersion ? { declaredVersion: input.declaredContractVersion } : {}),
+            ...(input.declaredContractVersion
+                ? { declaredVersion: input.declaredContractVersion }
+                : {}),
             observedFingerprint: fingerprint,
         },
         transport: {
             method: input.method,
             routeTemplate: input.routeTemplate,
+            payloadLocation: input.payloadLocation ?? defaultPayloadLocation(input),
             statusCode: input.statusCode,
             durationMs: input.durationMs,
             attempt: input.attempt ?? 1,

@@ -1,118 +1,158 @@
 # Founder demo runbook
 
-This runbook produces one honest evidence chain from a synthetic provider change to a real GitHub issue. It uses a local Candidate API, the live Seamward control plane, and a repository mapped through the Seamward GitHub App.
+This runbook produces one honest evidence chain from a versioned multi-operation contract to a provider break, an incident, a bounded repair, and GitHub delivery.
 
 ## Safety boundaries
 
 - Use synthetic candidate data only.
-- Never show `.env`, the PHPStorm run configuration, ingest tokens, or GitHub credentials.
+- Never show `.env`, IDE run configurations, API keys, ingest tokens, or GitHub credentials.
 - Do not log request bodies or headers.
-- Rehearse GitHub delivery only up to the confirmation dialog. The final confirmation creates a real external issue.
+- Rehearse GitHub delivery only up to the confirmation dialog. Final confirmation creates a real external issue or draft pull request.
 - Seamward proposes and validates a bounded repair. A human approves it. Seamward does not merge or deploy code.
 
 ## Live Seamward preflight
 
-1. Open `https://seamward.com` and sign in to the demo workspace.
-2. Create or open the `Candidate ATS` integration.
-3. Configure the expected outcome: `When candidate.create is observed, a candidate must appear within 1 minute.`
-4. Confirm the Source key and Integration key match the local `.env` file.
-5. Confirm the application environment ingest token is current.
-6. Connect the production Seamward GitHub App.
-7. Map the integration to this repository and its default branch.
-8. Confirm the GitHub installation has Issues read and write permission.
-9. If demonstrating a draft pull request, also confirm Contents and Pull requests read and write permission.
+1. Sign in to the demo workspace and open `Candidate ATS`.
+2. Confirm the application environment and integration use the credentials configured locally.
+3. Create a workspace API key with `contracts:read`, `contracts:write`, and `contracts:activate`.
+4. Run `pnpm contract:bootstrap`.
+5. Open the Contracts tab and confirm:
+   - `candidate-ats-v1` is Active;
+   - `candidate-ats-v2` is Draft;
+   - `candidate-ats-v3-breaking` is Draft;
+   - each version contains four operations.
+6. Configure the outcome rule: `When candidate.create is observed, a candidate must appear within 1 minute.`
+7. Connect the production Seamward GitHub App.
+8. Map the integration to this repository and its default branch.
+9. Confirm Issues read and write permission. For a draft pull request, also confirm Contents and Pull requests read and write permission.
 
 ## Local preflight
-
-Install and verify the repository:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm test
 pnpm typecheck
 pnpm build
-```
-
-Set `SEAMWARD_COMMIT_SHA` in `.env` to the output of:
-
-```bash
 git rev-parse HEAD
 ```
 
-Start the Candidate API in the first PHPStorm terminal:
+Set `SEAMWARD_COMMIT_SHA` in your local `.env` to the printed commit. Start the service:
 
 ```bash
 pnpm dev
 ```
 
-Run the following commands from a second PHPStorm terminal.
-
-## Recording sequence
-
-Reset the deterministic state:
+From a second terminal:
 
 ```bash
+pnpm preflight
 pnpm reset
 ```
 
-Establish a healthy baseline:
+## Recording sequence
+
+### 1. Show the active multi-operation contract
+
+Open the Contracts tab. Expand `candidate-ats-v1` and show the four operation keys:
+
+- `candidateCreated:message`
+- `candidateUpdated:message`
+- `candidateStatusChanged:message`
+- `candidateDocumentUploaded:message`
+
+Explain that the version is immutable and only one version is active.
+
+### 2. Send healthy traffic across operations
 
 ```bash
 pnpm send:healthy
+pnpm send:update
+pnpm send:status
+pnpm send:document
 ```
 
-The result must contain:
+Show that each observation resolves to the appropriate operation rather than a single integration-wide JSON shape.
 
-```json
-{
-  "statusCode": 202,
-  "body": {
-    "received": true,
-    "persisted": true
-  }
-}
+### 3. Demonstrate safe draft registration
+
+Open `candidate-ats-v2`. Explain that it adds optional `source_system` metadata. It remains Draft and does not change analysis.
+
+Activate it from the UI or run:
+
+```bash
+pnpm contract:activate -- candidate-ats-v2
 ```
 
-Trigger the provider field rename:
+Show that v2 becomes Active and v1 becomes Previous. If desired, immediately demonstrate rollback:
+
+```bash
+pnpm contract:activate -- candidate-ats-v1
+```
+
+Return to v1 for the failure sequence below.
+
+### 4. Trigger the provider break
 
 ```bash
 pnpm send:rename
 ```
 
-The result must contain:
+Expected output includes HTTP `202`, `received: true`, and `persisted: false`. Copy the printed candidate ID.
 
-```json
-{
-  "statusCode": 202,
-  "body": {
-    "received": true,
-    "persisted": false
-  }
-}
-```
+The observation still matches `candidateCreated:message`, but v1 detects the field difference:
 
-Copy the printed `candidateId` for recovery. Return to Seamward, check for the new observation, and allow the one-minute expected-outcome window to elapse. Open the resulting incident and keep the same incident through evidence, replay, repair approval, and GitHub delivery.
+- `email_address` was removed;
+- `candidate_email` was added;
+- no candidate business outcome was produced.
 
-Use this approval rationale:
+Allow the one-minute outcome window to expire. Open the resulting incident and show the attributed contract version, operation, match decision, observation evidence, and missing outcome.
+
+### 5. Review and deliver the bounded repair
+
+Keep the same incident open through replay, proposal, approval, and delivery. Use this approval rationale:
 
 ```text
 Historical replay passes for the candidate field mapping, and the change is limited to the observed renamed field.
 ```
 
-Review the generated issue preview. During the final take only, select `Create GitHub issue`, confirm the repository and content, and open the returned GitHub link.
+Review the generated issue or draft pull request preview. During the final take only, confirm delivery and open the returned GitHub link.
 
-## Recovery and retakes
-
-Recover the failed candidate with the ID printed by `pnpm send:rename`:
+### 6. Recover and verify
 
 ```bash
 pnpm send:recovery -- cand_123
 ```
 
-Reset before a new local take:
+Explain that GitHub delivery alone does not resolve the incident. Resolution requires repaired traffic from an identified deployment or an independently sustained recovery window.
+
+## Optional behavioural demonstration
+
+Behavioural findings require an established baseline. Send baseline traffic at least 15 minutes before recording:
+
+```bash
+pnpm send:baseline
+```
+
+Then choose one current-window scenario:
+
+```bash
+pnpm send:latency
+```
+
+or:
+
+```bash
+pnpm send:retries
+```
+
+The latency scenario produces 30 delayed observations. The retry scenario produces 30 correlated logical operations with ten retries. Do not claim an immediate finding unless the earlier observations have moved into the baseline window.
+
+## Retakes
+
+Reset before every local retake:
 
 ```bash
 pnpm reset
 ```
 
-Each new failure creates distinct evidence. Avoid creating multiple public GitHub issues during rehearsals.
+Each failure creates distinct evidence. Avoid producing multiple public GitHub issues during rehearsals.

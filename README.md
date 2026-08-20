@@ -1,36 +1,57 @@
 # Seamward Client Sandbox
 
-A standalone, production-shaped ATS webhook consumer for demonstrating Seamward onboarding, privacy-safe observation, expected outcomes, incident evidence, repair validation, and GitHub delivery.
+A standalone, production-shaped ATS webhook consumer for demonstrating the full Seamward contract and incident pipeline against a real external repository.
 
-This repository deliberately lives outside the Seamward monorepo. It installs extracted, versioned Seamward collector artifacts from `vendor/` and can run its tests and CI without local workspace links.
+The sandbox deliberately lives outside the Seamward monorepo. It installs extracted, versioned collector artifacts from `vendor/` and runs without workspace links.
 
-## What it models
+## What it demonstrates
 
-The service accepts `candidate.create` webhooks and persists candidates. Seamward observes the request structure, bounded outcome metadata, and deployment context without receiving raw candidate values.
+The `Candidate ATS` integration contains four independently matched operations:
 
-The sandbox supports five deterministic scenarios:
+| Operation                     | Route                         | Business result   |
+| ----------------------------- | ----------------------------- | ----------------- |
+| `candidate.create`            | `/webhooks/candidates`        | Candidate created |
+| `candidate.update`            | `/webhooks/candidates`        | Candidate updated |
+| `candidate.status_changed`    | `/webhooks/candidates/status` | Status updated    |
+| `candidate.document_uploaded` | `/webhooks/documents`         | Document attached |
 
-- healthy candidate creation;
-- a silent-success defect that returns `202` without storing the candidate;
-- a provider field rename that still returns HTTP `202` without persisting the candidate;
-- a provider primitive type change;
-- an authentication failure.
+The repository contains three immutable OpenAPI versions:
+
+| Version                     | Intended lifecycle | Purpose                                                |
+| --------------------------- | ------------------ | ------------------------------------------------------ |
+| `candidate-ats-v1`          | Initial active     | Original four-operation baseline                       |
+| `candidate-ats-v2`          | Compatible draft   | Adds optional `source_system` metadata                 |
+| `candidate-ats-v3-breaking` | Breaking draft     | Renames `email_address` to `candidate_email` on create |
+
+Only one version is active at a time. Each version contains several operation contracts. Registering a draft does not change analysis until that version is explicitly activated.
+
+Controlled scenarios include:
+
+- healthy create, update, status, and document operations;
+- provider field rename;
+- provider primitive type change;
+- silent HTTP success without a business outcome;
+- authentication failure;
+- median latency shift traffic;
+- correlated retry-rate anomaly traffic;
+- contract promotion and rollback.
 
 ## Requirements
 
 - Node.js 22 or newer
 - pnpm 11.19.0
-- a Seamward workspace
-- a Seamward Source key, Integration key, and server-side ingest token
+- a Seamward workspace and integration
+- a Source key, Integration key, and server-side ingest token
+- a workspace API key with `contracts:read`, `contracts:write`, and `contracts:activate`
 
 ## Install
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-Replace the three Seamward credential placeholders in `.env` with values from your workspace integration. Set `SEAMWARD_COMMIT_SHA` to the current Git commit so incident evidence and GitHub delivery refer to the same source. The ingest token is secret and must remain server-side.
+Fill the placeholders in your local `.env`. Never commit that file. Set `SEAMWARD_COMMIT_SHA` to `git rev-parse HEAD` so evidence and GitHub delivery refer to the same source revision.
 
 Start the service:
 
@@ -38,15 +59,62 @@ Start the service:
 pnpm dev
 ```
 
-The default address is `http://127.0.0.1:4200`. The example configuration sends redacted observations to the live Seamward ingest endpoint at `https://api.seamward.com/ingest`.
+The default address is `http://127.0.0.1:4200`. The collector sends privacy-safe envelope v0.2 observations to `https://api.seamward.com/ingest` unless configured otherwise.
 
-## Send traffic
+The same service can run in Docker without copying `.env` into the image:
 
-Healthy event:
+```bash
+docker compose up --build
+```
+
+## Register the contract versions
+
+Create a scoped API key in Seamward, set `SEAMWARD_API_KEY` and `SEAMWARD_INTEGRATION_ID`, then run:
+
+```bash
+pnpm contract:bootstrap
+```
+
+This command idempotently registers all three versions. If the integration has no active version, it activates `candidate-ats-v1`. It never replaces an existing active version implicitly.
+
+Inspect the lifecycle:
+
+```bash
+pnpm contract:list
+```
+
+Register one version explicitly:
+
+```bash
+pnpm contract:register -- candidate-ats-v2
+```
+
+Promote a draft:
+
+```bash
+pnpm contract:activate -- candidate-ats-v2
+```
+
+Roll back by reactivating a superseded immutable version:
+
+```bash
+pnpm contract:activate -- candidate-ats-v1
+```
+
+The activation command reads the active version first and sends it as an optimistic concurrency precondition.
+
+## Send operation traffic
 
 ```bash
 pnpm send:healthy
+pnpm send:update
+pnpm send:status
+pnpm send:document
 ```
+
+Each observation carries a deterministic operation identity, payload location, attempt number, deployment context, and privacy-safe correlation namespace.
+
+## Trigger structural and outcome failures
 
 Provider field rename:
 
@@ -54,33 +122,75 @@ Provider field rename:
 pnpm send:rename
 ```
 
-The provider sends `candidate_email` instead of `email_address`. The consumer still returns HTTP `202`, but it does not persist the candidate and it emits no `candidate` business outcome. This is the recommended founder-demo failure because it produces both structural drift and a missing expected outcome while ordinary status-code monitoring sees success.
+The provider sends `candidate_email` instead of `email_address`. The consumer still returns HTTP `202`, but it does not persist the candidate or emit the expected `candidate` business outcome. This creates structural evidence against v1 and can also expire an expected-outcome rule.
 
-Silent-success event:
+Silent success:
 
 ```bash
 pnpm send:silent
 ```
 
-The silent command returns HTTP `202`, but the candidate is not persisted and no `candidate` business outcome is emitted. Use this Seamward rule for either silent-success scenario:
+Recommended outcome rule:
 
 ```text
 When candidate.create is observed, a candidate must appear within 1 minute.
 ```
 
-reconciliation should open one missing-business-outcome incident after the delay.
-
-To recover, pass the candidate ID from the field-rename or silent-failure run:
+Recover a failed candidate using the printed ID:
 
 ```bash
 pnpm send:recovery -- cand_123
 ```
 
-Reset local state and failure controls:
+Reset local state:
 
 ```bash
 pnpm reset
 ```
+
+## Generate behavioural evidence
+
+Seamward compares the current 15-minute window with the preceding 24-hour baseline. Establish at least 30 healthy samples:
+
+```bash
+pnpm send:baseline
+```
+
+Allow those observations to leave the current 15-minute window before generating a current anomaly.
+
+Latency shift:
+
+```bash
+pnpm send:latency
+```
+
+This sends 30 operations with a deterministic 175 ms processing delay.
+
+Retry anomaly:
+
+```bash
+pnpm send:retries
+```
+
+This sends 30 correlated logical operations. Ten receive a second attempt, producing a 33.3 percent retry rate without exposing the idempotency values.
+
+## Preflight
+
+With the service running and all local credentials configured:
+
+```bash
+pnpm preflight
+```
+
+The check verifies:
+
+- the sandbox health endpoint;
+- bounded collector counters;
+- public Contract API access;
+- an active contract version;
+- at least four active operations.
+
+It never prints credentials.
 
 ## Verification
 
@@ -90,14 +200,14 @@ pnpm typecheck
 pnpm build
 ```
 
-Tests assert that healthy outcomes, silent failures, schema changes, and authentication failures produce the expected bounded envelopes. They also prove that names, email addresses, candidate IDs, and provider reference values do not leave the process.
+Tests prove operation matching, contract-version differences, retry correlation, envelope v0.2 metadata, outcome behavior, and that candidate values do not leave the process.
 
 ## Collector prerelease
 
-This sandbox installs vendored `@seamward/collector@0.1.0-alpha.1` and `@seamward/contracts@0.1.0-alpha.1` packages built from the official Seamward monorepo. Their source tarballs and checksums are retained in `vendor/`. This is a temporary distribution path until the Seamward npm organization scope is available.
+This repository vendors `@seamward/collector@0.1.0-alpha.2` and `@seamward/contracts@0.1.0-alpha.2`, built from the official Seamward monorepo. Tarballs and checksums are retained in `vendor/` until the public npm distribution is available.
 
-The alpha collector is for local evaluation only and is not a production support commitment.
+The alpha collector is for evaluation and demonstration, not a production support commitment.
 
 ## Founder demo
 
-Follow `DEMO_RUNBOOK.md` for the live Seamward and GitHub preflight, exact terminal commands, expected output, recording order, and reset procedure.
+Follow `DEMO_RUNBOOK.md` for the exact contract lifecycle, traffic sequence, expected UI states, repair approval, GitHub delivery, and reset procedure.

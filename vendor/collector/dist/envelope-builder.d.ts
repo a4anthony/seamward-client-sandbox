@@ -23,6 +23,7 @@ export interface ObservationInput {
     protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     routeTemplate: string;
+    payloadLocation?: "request" | "response" | "message";
     statusCode: number;
     durationMs: number;
     attempt?: number;

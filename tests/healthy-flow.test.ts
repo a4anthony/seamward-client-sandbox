@@ -38,7 +38,9 @@ describe("healthy candidate ingestion", () => {
         businessObjectType: "candidate",
       },
     });
-    expect(harness.envelopes[0]?.correlation?.sourceEventIdHash).toMatch(/^sha256:/);
+    expect(harness.envelopes[0]?.correlation?.sourceEventIdHash).toMatch(
+      /^sha256:/,
+    );
     expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBe(
       harness.envelopes[0]?.correlation?.sourceEventIdHash,
     );

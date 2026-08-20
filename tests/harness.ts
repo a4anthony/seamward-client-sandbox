@@ -19,7 +19,9 @@ export function createHarness() {
       commitSha: "a84c90f29b18d76565a85a779c8f4f32fb5ea5f7",
     },
     fetchFn: (async (_input, init) => {
-      const batch = JSON.parse(String(init?.body)) as { envelopes: ObservationEnvelope[] };
+      const batch = JSON.parse(String(init?.body)) as {
+        envelopes: ObservationEnvelope[];
+      };
       envelopes.push(...batch.envelopes);
       return new Response(null, { status: 202 });
     }) as typeof fetch,

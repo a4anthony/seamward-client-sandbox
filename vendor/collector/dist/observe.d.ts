@@ -23,12 +23,16 @@ export interface CollectorConfig extends Pick<ShipperConfig, "endpoint" | "crede
     deployment?: Partial<DeploymentContext>;
     /** Injected clock/id for tests. */
     builderDeps?: BuilderDeps;
+    /** Monotonic elapsed-time clock. Defaults to performance.now(). */
+    monotonicNowMs?: () => number;
 }
 export type RecordInput = Omit<ObservationInput, "tenantId" | "environmentId" | "deployment">;
 export interface WebhookMeta {
     integrationId: string;
     routeTemplate: string;
     method?: ObservationInput["method"];
+    attempt?: number;
+    correlation?: ObservationInput["correlation"];
 }
 export interface WebhookResult {
     statusCode?: number;
@@ -43,6 +47,8 @@ export interface FetchMeta {
     eventType?: ObservationInput["eventType"];
     /** Overrides the request method when a Request-like input obscures it. */
     method?: ObservationInput["method"];
+    attempt?: number;
+    correlation?: ObservationInput["correlation"];
 }
 export type ObservedFetch = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => Promise<Response>;
 export interface CollectorStats extends ShipperStats {

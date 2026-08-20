@@ -4,7 +4,7 @@ The Seamward collector observes third-party API and webhook behaviour from a
 Node.js backend. It batches redacted evidence asynchronously and never sits on
 the application's critical request path.
 
-This `0.1.0-alpha.1` release is for pilot evaluation with Node.js 22 or newer.
+This `0.1.0-alpha.2` release is for pilot evaluation with Node.js 22 or newer.
 TypeScript and server-side JavaScript are supported. PHP, Go, browser, and edge
 runtime collectors are not shipped yet.
 
@@ -166,6 +166,11 @@ service names. Put only identifiers needed for reconciliation into
 `correlation.sourceEventId`, `correlation.idempotencyKey`, or
 `outcome.businessObjectId`. The collector converts those values to keyed
 SHA-256 hashes locally; Seamward receives no original identifier.
+
+Set `attempt` and a stable `correlation.idempotencyKey` when observing provider
+retries. Envelope v0.2 derives a deterministic operation identity and includes
+the payload location, canonical attempt number, and a privacy-safe hash
+namespace for behavioural analysis.
 
 ## 7. Shutdown and health
 

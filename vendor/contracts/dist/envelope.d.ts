@@ -11,25 +11,32 @@ import type { Shape } from "./shape.js";
  * Versioned deliberately: bump `envelopeVersion` on breaking changes and keep
  * parsers for old versions - collectors in customer environments upgrade slowly.
  */
-export declare const ENVELOPE_VERSION: "0.1";
+export declare const LEGACY_ENVELOPE_VERSION: "0.1";
+export declare const ENVELOPE_VERSION: "0.2";
 export declare const directionSchema: z.ZodEnum<["inbound", "outbound"]>;
 export declare const protocolSchema: z.ZodEnum<["http-webhook", "http-api", "scheduled-feed", "queue"]>;
 export declare const correlationSchema: z.ZodObject<{
     traceId: z.ZodOptional<z.ZodString>;
     sourceEventIdHash: z.ZodOptional<z.ZodString>;
     idempotencyKeyHash: z.ZodOptional<z.ZodString>;
+    hashNamespace: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
     traceId?: string | undefined;
     sourceEventIdHash?: string | undefined;
     idempotencyKeyHash?: string | undefined;
+    hashNamespace?: string | undefined;
 }, {
     traceId?: string | undefined;
     sourceEventIdHash?: string | undefined;
     idempotencyKeyHash?: string | undefined;
+    hashNamespace?: string | undefined;
 }>;
+export declare const payloadLocationSchema: z.ZodEnum<["request", "response", "message"]>;
 export declare const transportSchema: z.ZodObject<{
     method: z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE"]>;
     routeTemplate: z.ZodString;
+    /** Optional only for backward compatibility with envelope v0.1 collectors. */
+    payloadLocation: z.ZodOptional<z.ZodEnum<["request", "response", "message"]>>;
     statusCode: z.ZodNumber;
     durationMs: z.ZodNumber;
     attempt: z.ZodNumber;
@@ -39,12 +46,14 @@ export declare const transportSchema: z.ZodObject<{
     statusCode: number;
     durationMs: number;
     attempt: number;
+    payloadLocation?: "message" | "request" | "response" | undefined;
 }, {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     routeTemplate: string;
     statusCode: number;
     durationMs: number;
     attempt: number;
+    payloadLocation?: "message" | "request" | "response" | undefined;
 }>;
 export declare const payloadMetaSchema: z.ZodEffects<z.ZodObject<{
     /** "none" = body dropped collector-side (the default posture). */
@@ -122,8 +131,8 @@ export declare const deploymentContextSchema: z.ZodEffects<z.ZodObject<{
     commitSha?: string | undefined;
 }>;
 export type DeploymentContext = z.infer<typeof deploymentContextSchema>;
-export declare const observationEnvelopeSchema: z.ZodObject<{
-    envelopeVersion: z.ZodLiteral<"0.1">;
+export declare const observationEnvelopeSchema: z.ZodEffects<z.ZodObject<{
+    envelopeVersion: z.ZodEnum<["0.1", "0.2"]>;
     eventId: z.ZodString;
     tenantId: z.ZodString;
     environmentId: z.ZodString;
@@ -131,6 +140,8 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
     direction: z.ZodEnum<["inbound", "outbound"]>;
     protocol: z.ZodEnum<["http-webhook", "http-api", "scheduled-feed", "queue"]>;
     occurredAt: z.ZodString;
+    /** Present on new collectors; absent v0.1 envelopes use legacy identity rules. */
+    operationIdentityVersion: z.ZodOptional<z.ZodLiteral<"1">>;
     deployment: z.ZodOptional<z.ZodEffects<z.ZodObject<{
         /** Stable application/service identifier; never a user or customer ID. */
         service: z.ZodOptional<z.ZodString>;
@@ -165,14 +176,17 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         traceId: z.ZodOptional<z.ZodString>;
         sourceEventIdHash: z.ZodOptional<z.ZodString>;
         idempotencyKeyHash: z.ZodOptional<z.ZodString>;
+        hashNamespace: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     }, {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     }>;
     contract: z.ZodObject<{
         declaredVersion: z.ZodOptional<z.ZodString>;
@@ -187,6 +201,8 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
     transport: z.ZodObject<{
         method: z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE"]>;
         routeTemplate: z.ZodString;
+        /** Optional only for backward compatibility with envelope v0.1 collectors. */
+        payloadLocation: z.ZodOptional<z.ZodEnum<["request", "response", "message"]>>;
         statusCode: z.ZodNumber;
         durationMs: z.ZodNumber;
         attempt: z.ZodNumber;
@@ -196,12 +212,14 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     }, {
         method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         routeTemplate: string;
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     }>;
     payload: z.ZodEffects<z.ZodObject<{
         /** "none" = body dropped collector-side (the default posture). */
@@ -258,15 +276,16 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
     tenantId: string;
     environmentId: string;
     integrationId: string;
-    envelopeVersion: "0.1";
-    eventId: string;
     direction: "inbound" | "outbound";
     protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
     occurredAt: string;
     correlation: {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     };
     contract: {
         observedFingerprint: string;
@@ -278,6 +297,7 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     };
     payload: {
         storage: "none" | "encrypted-object";
@@ -291,25 +311,27 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         businessObjectType?: string | undefined;
         businessObjectIdHash?: string | undefined;
     };
+    eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
     deployment?: {
         service?: string | undefined;
         release?: string | undefined;
         commitSha?: string | undefined;
     } | undefined;
-    eventType?: string | undefined;
 }, {
     tenantId: string;
     environmentId: string;
     integrationId: string;
-    envelopeVersion: "0.1";
-    eventId: string;
     direction: "inbound" | "outbound";
     protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
     occurredAt: string;
     correlation: {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     };
     contract: {
         observedFingerprint: string;
@@ -321,6 +343,7 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     };
     payload: {
         storage: "none" | "encrypted-object";
@@ -334,12 +357,105 @@ export declare const observationEnvelopeSchema: z.ZodObject<{
         businessObjectType?: string | undefined;
         businessObjectIdHash?: string | undefined;
     };
+    eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
     deployment?: {
         service?: string | undefined;
         release?: string | undefined;
         commitSha?: string | undefined;
     } | undefined;
+}>, {
+    tenantId: string;
+    environmentId: string;
+    integrationId: string;
+    direction: "inbound" | "outbound";
+    protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
+    occurredAt: string;
+    correlation: {
+        traceId?: string | undefined;
+        sourceEventIdHash?: string | undefined;
+        idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
+    };
+    contract: {
+        observedFingerprint: string;
+        declaredVersion?: string | undefined;
+    };
+    transport: {
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        routeTemplate: string;
+        statusCode: number;
+        durationMs: number;
+        attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
+    };
+    payload: {
+        storage: "none" | "encrypted-object";
+        schemaFingerprint: string;
+        schemaShape: Shape;
+        redactionPolicyVersion: string;
+        objectRef?: string | undefined;
+    };
+    outcome: {
+        accepted: boolean;
+        businessObjectType?: string | undefined;
+        businessObjectIdHash?: string | undefined;
+    };
     eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
+    deployment?: {
+        service?: string | undefined;
+        release?: string | undefined;
+        commitSha?: string | undefined;
+    } | undefined;
+}, {
+    tenantId: string;
+    environmentId: string;
+    integrationId: string;
+    direction: "inbound" | "outbound";
+    protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
+    occurredAt: string;
+    correlation: {
+        traceId?: string | undefined;
+        sourceEventIdHash?: string | undefined;
+        idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
+    };
+    contract: {
+        observedFingerprint: string;
+        declaredVersion?: string | undefined;
+    };
+    transport: {
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+        routeTemplate: string;
+        statusCode: number;
+        durationMs: number;
+        attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
+    };
+    payload: {
+        storage: "none" | "encrypted-object";
+        schemaFingerprint: string;
+        schemaShape: Shape;
+        redactionPolicyVersion: string;
+        objectRef?: string | undefined;
+    };
+    outcome: {
+        accepted: boolean;
+        businessObjectType?: string | undefined;
+        businessObjectIdHash?: string | undefined;
+    };
+    eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
+    deployment?: {
+        service?: string | undefined;
+        release?: string | undefined;
+        commitSha?: string | undefined;
+    } | undefined;
 }>;
 export type ObservationEnvelope = z.infer<typeof observationEnvelopeSchema>;
 /** Parse an unknown value into an envelope, throwing on any violation. */
@@ -349,15 +465,16 @@ export declare function safeParseEnvelope(input: unknown): z.SafeParseReturnType
     tenantId: string;
     environmentId: string;
     integrationId: string;
-    envelopeVersion: "0.1";
-    eventId: string;
     direction: "inbound" | "outbound";
     protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
     occurredAt: string;
     correlation: {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     };
     contract: {
         observedFingerprint: string;
@@ -369,6 +486,7 @@ export declare function safeParseEnvelope(input: unknown): z.SafeParseReturnType
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     };
     payload: {
         storage: "none" | "encrypted-object";
@@ -382,25 +500,27 @@ export declare function safeParseEnvelope(input: unknown): z.SafeParseReturnType
         businessObjectType?: string | undefined;
         businessObjectIdHash?: string | undefined;
     };
+    eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
     deployment?: {
         service?: string | undefined;
         release?: string | undefined;
         commitSha?: string | undefined;
     } | undefined;
-    eventType?: string | undefined;
 }, {
     tenantId: string;
     environmentId: string;
     integrationId: string;
-    envelopeVersion: "0.1";
-    eventId: string;
     direction: "inbound" | "outbound";
     protocol: "http-webhook" | "http-api" | "scheduled-feed" | "queue";
+    envelopeVersion: "0.1" | "0.2";
+    eventId: string;
     occurredAt: string;
     correlation: {
         traceId?: string | undefined;
         sourceEventIdHash?: string | undefined;
         idempotencyKeyHash?: string | undefined;
+        hashNamespace?: string | undefined;
     };
     contract: {
         observedFingerprint: string;
@@ -412,6 +532,7 @@ export declare function safeParseEnvelope(input: unknown): z.SafeParseReturnType
         statusCode: number;
         durationMs: number;
         attempt: number;
+        payloadLocation?: "message" | "request" | "response" | undefined;
     };
     payload: {
         storage: "none" | "encrypted-object";
@@ -425,10 +546,11 @@ export declare function safeParseEnvelope(input: unknown): z.SafeParseReturnType
         businessObjectType?: string | undefined;
         businessObjectIdHash?: string | undefined;
     };
+    eventType?: string | undefined;
+    operationIdentityVersion?: "1" | undefined;
     deployment?: {
         service?: string | undefined;
         release?: string | undefined;
         commitSha?: string | undefined;
     } | undefined;
-    eventType?: string | undefined;
 }>;

@@ -1,8 +1,15 @@
-export const failureModes = ["none", "silent-success", "auth-failure"] as const;
+export const failureModes = [
+  "none",
+  "silent-success",
+  "auth-failure",
+  "slow-processing",
+] as const;
 export type FailureMode = (typeof failureModes)[number];
 
 export function isFailureMode(value: unknown): value is FailureMode {
-  return typeof value === "string" && failureModes.includes(value as FailureMode);
+  return (
+    typeof value === "string" && failureModes.includes(value as FailureMode)
+  );
 }
 
 export class FailureControls {

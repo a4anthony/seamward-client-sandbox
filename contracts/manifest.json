@@ -1,0 +1,19 @@
+{
+  "contracts": [
+    {
+      "declaredVersion": "candidate-ats-v1",
+      "file": "candidate-ats-v1.openapi.json",
+      "purpose": "Original four-operation production baseline"
+    },
+    {
+      "declaredVersion": "candidate-ats-v2",
+      "file": "candidate-ats-v2.openapi.json",
+      "purpose": "Compatible draft adding optional source_system metadata"
+    },
+    {
+      "declaredVersion": "candidate-ats-v3-breaking",
+      "file": "candidate-ats-v3-breaking.openapi.json",
+      "purpose": "Breaking provider draft that renames email_address to candidate_email"
+    }
+  ]
+}

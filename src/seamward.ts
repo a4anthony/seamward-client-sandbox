@@ -8,7 +8,9 @@ function required(environment: Environment, name: string): string {
   return value;
 }
 
-export function createConfiguredCollector(environment: Environment = process.env) {
+export function createConfiguredCollector(
+  environment: Environment = process.env,
+) {
   const integrationKey = required(environment, "SEAMWARD_INTEGRATION_KEY");
   const collector = createSeamwardCollector({
     sourceKey: required(environment, "SEAMWARD_SOURCE_KEY"),
@@ -23,6 +25,7 @@ export function createConfiguredCollector(environment: Environment = process.env
       version: "candidate-api-redaction-v1",
       dropFields: ["full_name"],
       hashFields: ["email_address", "candidate_email"],
+      hashNamespace: "candidate-api-demo-v2",
     },
   });
   return { collector, integrationKey };

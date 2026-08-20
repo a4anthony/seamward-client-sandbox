@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Candidate ATS webhooks",
+    "version": "candidate-ats-v2"
+  },
+  "paths": {},
+  "webhooks": {
+    "candidate.create": {
+      "post": {
+        "operationId": "candidateCreated",
+        "x-seamward-event-type": "candidate.create",
+        "x-seamward-route-template": "/webhooks/candidates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateCreated"
+              }
+            }
+          }
+        }
+      }
+    },
+    "candidate.update": {
+      "post": {
+        "operationId": "candidateUpdated",
+        "x-seamward-event-type": "candidate.update",
+        "x-seamward-route-template": "/webhooks/candidates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateUpdated"
+              }
+            }
+          }
+        }
+      }
+    },
+    "candidate.status_changed": {
+      "post": {
+        "operationId": "candidateStatusChanged",
+        "x-seamward-event-type": "candidate.status_changed",
+        "x-seamward-route-template": "/webhooks/candidates/status",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateStatusChanged"
+              }
+            }
+          }
+        }
+      }
+    },
+    "candidate.document_uploaded": {
+      "post": {
+        "operationId": "candidateDocumentUploaded",
+        "x-seamward-event-type": "candidate.document_uploaded",
+        "x-seamward-route-template": "/webhooks/documents",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateDocumentUploaded"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CandidateCreated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "id",
+          "full_name",
+          "email_address",
+          "external_reference"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": ["candidate.create"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email_address": {
+            "type": "string"
+          },
+          "external_reference": {
+            "type": "string"
+          },
+          "source_system": {
+            "type": "string"
+          }
+        }
+      },
+      "CandidateUpdated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "id",
+          "full_name",
+          "email_address",
+          "changed_fields"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": ["candidate.update"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email_address": {
+            "type": "string"
+          },
+          "changed_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_system": {
+            "type": "string"
+          }
+        }
+      },
+      "CandidateStatusChanged": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "event_type", "id", "status", "changed_by"],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": ["candidate.status_changed"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["new", "screening", "interview", "hired", "rejected"]
+          },
+          "changed_by": {
+            "type": "string"
+          }
+        }
+      },
+      "CandidateDocumentUploaded": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_type",
+          "id",
+          "document_id",
+          "document_type",
+          "storage_reference"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string",
+            "enum": ["candidate.document_uploaded"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "document_type": {
+            "type": "string",
+            "enum": ["cv", "cover_letter"]
+          },
+          "storage_reference": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

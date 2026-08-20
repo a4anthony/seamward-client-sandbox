@@ -11,6 +11,8 @@ export declare const ALWAYS_DROPPED_HEADERS: readonly ["authorization", "proxy-a
 export interface RedactionPolicy {
     /** Policy identifier stamped into every envelope for auditability. */
     version: string;
+    /** Non-secret key generation identifier. Derived from hashKey when omitted. */
+    hashNamespace?: string;
     /** Case-insensitive field names whose values are dropped entirely. */
     dropFields: string[];
     /** Case-insensitive field names whose values are replaced by keyed hashes. */

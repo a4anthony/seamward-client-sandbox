@@ -46,11 +46,19 @@ describe("provider schema changes", () => {
     const changedType = candidatePayload("type-change", "cand_shape_3");
 
     for (const payload of [healthy, renamed, changedType]) {
-      await harness.app.inject({ method: "POST", url: "/webhooks/candidates", payload });
+      await harness.app.inject({
+        method: "POST",
+        url: "/webhooks/candidates",
+        payload,
+      });
     }
     await harness.collector.flush();
 
-    expect(new Set(harness.envelopes.map((event) => event.contract.observedFingerprint)).size).toBe(3);
+    expect(
+      new Set(
+        harness.envelopes.map((event) => event.contract.observedFingerprint),
+      ).size,
+    ).toBe(3);
     expect(JSON.stringify(harness.envelopes)).not.toContain("example.test");
   });
 });

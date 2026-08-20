@@ -41,7 +41,7 @@ Controlled scenarios include:
 - Node.js 22 or newer
 - pnpm 11.19.0
 - a Seamward workspace and integration
-- a Source key, Integration key, and server-side ingest token
+- a public Connection key and a server-side ingest token
 - a workspace API key with `contracts:read`, `contracts:write`, and `contracts:activate`
 
 ## Install
@@ -51,7 +51,7 @@ pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-Fill the placeholders in your local `.env`. Never commit that file. Set `SEAMWARD_COMMIT_SHA` to `git rev-parse HEAD` so evidence and GitHub delivery refer to the same source revision.
+Fill the placeholders in your local `.env`. Never commit that file. Copy the public Connection key and ingest token from the integration's Collector setup tab. The sandbox discovers the local Git commit automatically; supported deployment platforms also provide commit metadata automatically.
 
 Start the service:
 
@@ -69,13 +69,15 @@ docker compose up --build
 
 ## Register the contract versions
 
-Create a scoped API key in Seamward, set `SEAMWARD_API_KEY` and `SEAMWARD_INTEGRATION_ID`, then run:
+Create a scoped API key in Workspace settings, set `SEAMWARD_API_KEY`, then run:
 
 ```bash
 pnpm contract:bootstrap
 ```
 
 This command idempotently registers all three versions. If the integration has no active version, it activates `candidate-ats-v1`. It never replaces an existing active version implicitly.
+
+The public Connection key already contains the non-secret integration identity used by these commands, so `SEAMWARD_INTEGRATION_ID` is not required. You can still set it as an explicit override for advanced automation.
 
 Inspect the lifecycle:
 

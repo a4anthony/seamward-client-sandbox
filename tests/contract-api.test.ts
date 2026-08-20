@@ -9,7 +9,10 @@ afterEach(() => {
 function configure() {
   vi.stubEnv("SEAMWARD_MANAGEMENT_API_URL", "https://api.example.test");
   vi.stubEnv("SEAMWARD_API_KEY", "sw_api_test_key");
-  vi.stubEnv("SEAMWARD_INTEGRATION_ID", "int_demo");
+  vi.stubEnv(
+    "SEAMWARD_CONNECTION_KEY",
+    "sw_conn_v1.M8nQ3wR6tY9pL2sV.K7mP4xQ9vT2nW6cR.demo",
+  );
 }
 
 describe("public Contract API tooling", () => {

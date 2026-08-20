@@ -6,20 +6,26 @@ export interface ConnectOptions extends Pick<CollectorConfig, "deployment" | "bu
     endpoint?: string;
     policy?: Omit<RedactionPolicy, "hashKey">;
 }
-export interface CreateSeamwardCollectorConfig extends ConnectOptions {
-    /** Public application/environment identifier. Grants no read or management access. */
-    sourceKey: string;
+export type CreateSeamwardCollectorConfig = ConnectOptions & {
     /** Write-only server credential. Store this in an environment variable. */
     ingestToken: string;
-}
+} & ({
+    /** Public key that binds one source and integration. Grants no access by itself. */
+    connectionKey: string;
+    sourceKey?: never;
+} | {
+    /** Legacy public application/environment identifier. */
+    sourceKey: string;
+    connectionKey?: never;
+});
 export type ConnectedRecordInput = Omit<RecordInput, "integrationId"> & {
-    integrationKey: string;
+    integrationKey?: string;
 };
 export type ConnectedWebhookMeta = Omit<WebhookMeta, "integrationId"> & {
-    integrationKey: string;
+    integrationKey?: string;
 };
 export type ConnectedFetchMeta = Omit<FetchMeta, "integrationId"> & {
-    integrationKey: string;
+    integrationKey?: string;
 };
 export interface ConnectedCollector extends Omit<Collector, "record" | "observeWebhook" | "observeFetch"> {
     record(input: ConnectedRecordInput): void;
@@ -31,4 +37,4 @@ export interface ConnectedCollector extends Omit<Collector, "record" | "observeW
  * application; Integration keys route its observations, and the write-only
  * ingest token authenticates and signs every batch.
  */
-export declare function createSeamwardCollector({ sourceKey: rawSourceKey, ingestToken: rawIngestToken, endpoint, policy, ...options }: CreateSeamwardCollectorConfig): ConnectedCollector;
+export declare function createSeamwardCollector(config: CreateSeamwardCollectorConfig): ConnectedCollector;

@@ -33,10 +33,9 @@ pnpm install --frozen-lockfile
 pnpm test
 pnpm typecheck
 pnpm build
-git rev-parse HEAD
 ```
 
-Set `SEAMWARD_COMMIT_SHA` in your local `.env` to the printed commit. Start the service:
+The sandbox reads the current local Git commit automatically. `SEAMWARD_COMMIT_SHA` remains an optional override. Start the service:
 
 ```bash
 pnpm dev

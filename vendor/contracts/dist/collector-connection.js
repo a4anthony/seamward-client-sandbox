@@ -14,30 +14,75 @@ const endpointSchema = z
 export const collectorBootstrapConfigSchema = z
     .object({
     endpoint: endpointSchema,
-    credentialId: z.string().regex(/^colcred_[A-Za-z0-9_-]+$/).max(128),
+    credentialId: z
+        .string()
+        .regex(/^colcred_[A-Za-z0-9_-]+$/)
+        .max(128),
     secret: z.string().min(32).max(256),
     hashKey: z.string().min(32).max(256),
-    tenantId: z.string().regex(/^ten_[A-Za-z0-9_-]+$/).max(128),
-    environmentId: z.string().regex(/^env_[A-Za-z0-9_-]+$/).max(128),
-    integrationId: z.string().regex(/^int_[A-Za-z0-9_-]+$/).max(128),
+    tenantId: z
+        .string()
+        .regex(/^ten_[A-Za-z0-9_-]+$/)
+        .max(128),
+    environmentId: z
+        .string()
+        .regex(/^env_[A-Za-z0-9_-]+$/)
+        .max(128),
+    integrationId: z
+        .string()
+        .regex(/^int_[A-Za-z0-9_-]+$/)
+        .max(128),
 })
     .strict();
 const INTEGRATION_KEY_PREFIX = "sw_int_";
 const SOURCE_KEY_PREFIX = "sw_src_";
+const CONNECTION_KEY_PREFIX = "sw_conn_v1.";
 const integrationKeyTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{16,24}$/);
-export const integrationKeySchema = z.string().regex(/^sw_int_[A-Za-z0-9_-]{16,24}$/);
+export const integrationKeySchema = z
+    .string()
+    .regex(/^sw_int_[A-Za-z0-9_-]{16,24}$/);
 export function formatIntegrationKey(token) {
     return integrationKeySchema.parse(`${INTEGRATION_KEY_PREFIX}${integrationKeyTokenSchema.parse(token)}`);
 }
 export function parseIntegrationKey(value) {
     return integrationKeySchema.parse(value);
 }
-export const sourceKeySchema = z.string().regex(/^sw_src_[A-Za-z0-9_-]{16,24}$/);
+export const sourceKeySchema = z
+    .string()
+    .regex(/^sw_src_[A-Za-z0-9_-]{16,24}$/);
 export function formatSourceKey(token) {
     return sourceKeySchema.parse(`${SOURCE_KEY_PREFIX}${integrationKeyTokenSchema.parse(token)}`);
 }
 export function parseSourceKey(value) {
     return sourceKeySchema.parse(value);
+}
+export const connectionKeySchema = z
+    .string()
+    .regex(/^sw_conn_v1\.[A-Za-z0-9_-]{16,24}\.[A-Za-z0-9_-]{16,24}\.[A-Za-z0-9_-]{1,124}$/);
+/**
+ * Combine the public source and integration identifiers into one runtime
+ * value. This key contains no credential and grants no access by itself.
+ */
+export function formatConnectionKey(input) {
+    const sourceKey = parseSourceKey(input.sourceKey);
+    const integrationKey = parseIntegrationKey(input.integrationKey);
+    const integrationId = z
+        .string()
+        .regex(/^int_[A-Za-z0-9_-]+$/)
+        .max(128)
+        .parse(input.integrationId);
+    return connectionKeySchema.parse(`${CONNECTION_KEY_PREFIX}${sourceKey.slice(SOURCE_KEY_PREFIX.length)}.${integrationKey.slice(INTEGRATION_KEY_PREFIX.length)}.${integrationId.slice(4)}`);
+}
+export function parseConnectionKey(value) {
+    const parsed = connectionKeySchema.parse(value);
+    const [sourceToken, integrationToken, integrationIdToken] = parsed
+        .slice(CONNECTION_KEY_PREFIX.length)
+        .split(".");
+    return {
+        sourceKey: formatSourceKey(sourceToken ?? ""),
+        integrationKey: formatIntegrationKey(integrationToken ?? ""),
+        integrationId: `int_${integrationIdToken ?? ""}`,
+    };
 }
 const INGEST_TOKEN_PREFIX = "sw_ing_";
 const ingestTokenSecretSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);

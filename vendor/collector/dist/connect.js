@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { parseIngestToken, parseIntegrationKey, parseSourceKey, } from "@seamward/contracts";
+import { parseIngestToken, parseConnectionKey, parseIntegrationKey, parseSourceKey, } from "@seamward/contracts";
 import { createCollector, } from "./observe.js";
 const defaultPolicy = {
     version: "seamward-default-v1",
@@ -21,14 +21,23 @@ function defaultIngestEndpoint() {
  * application; Integration keys route its observations, and the write-only
  * ingest token authenticates and signs every batch.
  */
-export function createSeamwardCollector({ sourceKey: rawSourceKey, ingestToken: rawIngestToken, endpoint = defaultIngestEndpoint(), policy = defaultPolicy, ...options }) {
+export function createSeamwardCollector(config) {
+    const { connectionKey: rawConnectionKey, ingestToken: rawIngestToken, endpoint = defaultIngestEndpoint(), policy = defaultPolicy, sourceKey: rawSourceKey, ...options } = config;
     let sourceKey;
+    let boundIntegrationKey = null;
     let ingestToken;
     try {
-        sourceKey = parseSourceKey(rawSourceKey);
+        if (rawConnectionKey) {
+            const parsed = parseConnectionKey(rawConnectionKey);
+            sourceKey = parsed.sourceKey;
+            boundIntegrationKey = parsed.integrationKey;
+        }
+        else {
+            sourceKey = parseSourceKey(rawSourceKey ?? "");
+        }
     }
     catch {
-        throw new Error("Seamward source key is invalid");
+        throw new Error("Seamward connection key or source key is invalid");
     }
     try {
         ingestToken = parseIngestToken(rawIngestToken);
@@ -50,13 +59,20 @@ export function createSeamwardCollector({ sourceKey: rawSourceKey, ingestToken: 
         },
         ...options,
     });
+    function integrationId(value) {
+        const selected = value ?? boundIntegrationKey;
+        if (!selected) {
+            throw new Error("Seamward integration key is required when using a legacy source key");
+        }
+        return parseIntegrationKey(selected);
+    }
     return {
         record: ({ integrationKey, ...input }) => collector.record({
             ...input,
-            integrationId: parseIntegrationKey(integrationKey),
+            integrationId: integrationId(integrationKey),
         }),
-        observeWebhook: ({ integrationKey, ...meta }, handler) => collector.observeWebhook({ ...meta, integrationId: parseIntegrationKey(integrationKey) }, handler),
-        observeFetch: ({ integrationKey, ...meta }, fetchFn) => collector.observeFetch({ ...meta, integrationId: parseIntegrationKey(integrationKey) }, fetchFn),
+        observeWebhook: ({ integrationKey, ...meta }, handler) => collector.observeWebhook({ ...meta, integrationId: integrationId(integrationKey) }, handler),
+        observeFetch: ({ integrationKey, ...meta }, fetchFn) => collector.observeFetch({ ...meta, integrationId: integrationId(integrationKey) }, fetchFn),
         flush: () => collector.flush(),
         stop: () => collector.stop(),
         stats: () => collector.stats(),

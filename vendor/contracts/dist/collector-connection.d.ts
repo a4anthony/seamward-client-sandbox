@@ -31,6 +31,18 @@ export declare function parseIntegrationKey(value: string): string;
 export declare const sourceKeySchema: z.ZodString;
 export declare function formatSourceKey(token: string): string;
 export declare function parseSourceKey(value: string): string;
+export interface CollectorConnectionKey {
+    sourceKey: string;
+    integrationKey: string;
+    integrationId: string;
+}
+export declare const connectionKeySchema: z.ZodString;
+/**
+ * Combine the public source and integration identifiers into one runtime
+ * value. This key contains no credential and grants no access by itself.
+ */
+export declare function formatConnectionKey(input: CollectorConnectionKey): string;
+export declare function parseConnectionKey(value: string): CollectorConnectionKey;
 export declare const ingestTokenSchema: z.ZodString;
 export declare function formatIngestToken(secret: string): string;
 export declare function parseIngestToken(value: string): string;

@@ -4,7 +4,7 @@ The Seamward collector observes third-party API and webhook behaviour from a
 Node.js backend. It batches redacted evidence asynchronously and never sits on
 the application's critical request path.
 
-This `0.1.0-alpha.2` release is for pilot evaluation with Node.js 22 or newer.
+This `0.1.0-alpha.1` release is for pilot evaluation with Node.js 22 or newer.
 TypeScript and server-side JavaScript are supported. PHP, Go, browser, and edge
 runtime collectors are not shipped yet.
 
@@ -15,11 +15,12 @@ In Seamward:
 1. Open the workspace and create an application environment under **Settings**.
 2. Generate its ingest token and copy it immediately. The token is shown once.
 3. Create or open an integration.
-4. Copy the Source key and Integration key shown by Seamward.
+4. Copy the public Connection key from the integration's **Collector setup** tab.
 
-The Source and Integration keys are identifiers. The ingest token is a
-write-only secret: keep it in the backend secret manager and never put it in
-browser code, Git, logs, screenshots, or support messages.
+The Connection key contains public routing identifiers and grants no access by
+itself. The ingest token is a write-only secret: keep it in the backend secret
+manager and never put it in browser code, Git, logs, screenshots, or support
+messages.
 
 ## 2. Install the pilot release
 
@@ -33,8 +34,7 @@ through your lockfile as with any dependency.
 ## 3. Configure the backend
 
 ```ini
-SEAMWARD_SOURCE_KEY=sw_src_replace_me
-SEAMWARD_INTEGRATION_KEY=sw_int_replace_me
+SEAMWARD_CONNECTION_KEY=sw_conn_v1.replace_me
 SEAMWARD_INGEST_TOKEN=sw_ing_replace_me
 SEAMWARD_INGEST_URL=http://127.0.0.1:4100/ingest
 ```
@@ -48,7 +48,7 @@ Create one collector per backend process:
 import { createSeamwardCollector } from "@seamward/collector";
 
 export const seamward = createSeamwardCollector({
-  sourceKey: process.env.SEAMWARD_SOURCE_KEY!,
+  connectionKey: process.env.SEAMWARD_CONNECTION_KEY!,
   ingestToken: process.env.SEAMWARD_INGEST_TOKEN!,
   endpoint: process.env.SEAMWARD_INGEST_URL,
   deployment: {
@@ -72,7 +72,6 @@ Seamward.
 ```ts
 const handleCandidateWebhook = seamward.observeWebhook(
   {
-    integrationKey: process.env.SEAMWARD_INTEGRATION_KEY!,
     routeTemplate: "/webhooks/candidates",
   },
   async (payload) => {
@@ -92,7 +91,9 @@ const handleCandidateWebhook = seamward.observeWebhook(
 );
 
 fastify.post("/webhooks/candidates", async (request, reply) => {
-  const result = await handleCandidateWebhook(request.body as Record<string, unknown>);
+  const result = await handleCandidateWebhook(
+    request.body as Record<string, unknown>,
+  );
   return reply.code(result.statusCode ?? 200).send();
 });
 ```
@@ -104,7 +105,6 @@ query strings, email addresses, or other high-cardinality values.
 
 ```ts
 const providerFetch = seamward.observeFetch({
-  integrationKey: process.env.SEAMWARD_INTEGRATION_KEY!,
   routeTemplate: "/v1/candidates",
   eventType: "candidate.create",
 });
@@ -141,7 +141,7 @@ configuration that produced it:
 
 ```ts
 const seamward = createSeamwardCollector({
-  sourceKey: process.env.SEAMWARD_SOURCE_KEY!,
+  connectionKey: process.env.SEAMWARD_CONNECTION_KEY!,
   ingestToken: process.env.SEAMWARD_INGEST_TOKEN!,
   policy: {
     version: "candidate-api-v1",
@@ -167,11 +167,6 @@ service names. Put only identifiers needed for reconciliation into
 `outcome.businessObjectId`. The collector converts those values to keyed
 SHA-256 hashes locally; Seamward receives no original identifier.
 
-Set `attempt` and a stable `correlation.idempotencyKey` when observing provider
-retries. Envelope v0.2 derives a deterministic operation identity and includes
-the payload location, canonical attempt number, and a privacy-safe hash
-namespace for behavioural analysis.
-
 ## 7. Shutdown and health
 
 Flush before a controlled process shutdown:
@@ -188,14 +183,8 @@ never reject because Seamward telemetry must not break the host application.
 Inspect bounded operational counters without logging observations or tokens:
 
 ```ts
-const {
-  enqueued,
-  shipped,
-  dropped,
-  failedBatches,
-  queueLength,
-  buildErrors,
-} = seamward.stats();
+const { enqueued, shipped, dropped, failedBatches, queueLength, buildErrors } =
+  seamward.stats();
 ```
 
 Defaults:
@@ -209,7 +198,7 @@ Defaults:
 
 ## 8. Verify the connection
 
-1. Start the backend with the three Seamward values configured.
+1. Start the backend with the Connection key and ingest token configured.
 2. Exercise one synthetic webhook or API request.
 3. Wait for the five-second automatic flush, or call `await seamward.flush()`.
 4. Return to the integration in Seamward and select **Check for observation**.
@@ -218,8 +207,8 @@ Defaults:
 If the integration remains unobserved:
 
 - confirm the collector is running in the backend rather than the browser;
-- confirm the Source and Integration keys belong to the same workspace;
-- confirm the ingest token belongs to the selected application environment;
+- copy the Connection key again from the integration you are testing;
+- confirm the ingest token belongs to that integration's application environment;
 - inspect `seamward.stats()` for `failedBatches`, `dropped`, or `buildErrors`;
 - verify the local API is reachable at the configured ingest URL;
 - generate a new ingest token if the original was not saved or may be exposed.

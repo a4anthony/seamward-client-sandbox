@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { firstScriptArgument } from "./arguments.js";
+import { parseConnectionKey } from "@seamward/contracts";
 
 interface ContractVersion {
   id: string;
@@ -53,7 +54,11 @@ async function apiRequest(path: string, init?: RequestInit): Promise<Response> {
 }
 
 function contractsPath(): string {
-  return `/v1/integrations/${encodeURIComponent(required("SEAMWARD_INTEGRATION_ID"))}/contracts`;
+  const explicit = process.env.SEAMWARD_INTEGRATION_ID;
+  const integrationId =
+    explicit ??
+    parseConnectionKey(required("SEAMWARD_CONNECTION_KEY")).integrationId;
+  return `/v1/integrations/${encodeURIComponent(integrationId)}/contracts`;
 }
 
 async function responseJson(

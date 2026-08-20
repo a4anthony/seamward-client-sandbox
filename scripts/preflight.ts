@@ -1,11 +1,9 @@
 import { listContracts } from "./contract-api.js";
 
 const requiredVariables = [
-  "SEAMWARD_SOURCE_KEY",
-  "SEAMWARD_INTEGRATION_KEY",
+  "SEAMWARD_CONNECTION_KEY",
   "SEAMWARD_INGEST_TOKEN",
   "SEAMWARD_API_KEY",
-  "SEAMWARD_INTEGRATION_ID",
 ] as const;
 const missing = requiredVariables.filter((name) => !process.env[name]);
 if (missing.length > 0)

@@ -122,10 +122,7 @@ export function buildCandidateApp({
     if (failures.current() === "auth-failure") return rejected(eventId, 401);
     if (!value || !eventType || !candidateId) return rejected(eventId, 422);
     if (hasRenamedCandidateEmail(payload)) {
-      return {
-        ...accepted("candidate.create", eventId, "candidate"),
-        outcome: { accepted: true },
-      };
+      value.email_address = value.candidate_email;
     }
     if (failures.current() === "silent-success") {
       return {

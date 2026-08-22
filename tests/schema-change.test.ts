@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("provider schema changes", () => {
-  it("acknowledges a renamed provider field while exposing the missing business outcome", async () => {
+  it("persists a renamed provider field through the approved adapter repair", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
 
@@ -19,17 +19,24 @@ describe("provider schema changes", () => {
     });
 
     expect(response.statusCode).toBe(202);
-    expect(response.json()).toEqual({ received: true, persisted: false });
-    expect(harness.candidates.get("cand_renamed")).toBeNull();
+    expect(response.json()).toEqual({ received: true, persisted: true });
+    expect(harness.candidates.get("cand_renamed")).toMatchObject({
+      emailAddress: "taylor@example.test",
+      externalReference: "ATS-1001",
+    });
 
     await harness.collector.flush();
     expect(harness.envelopes).toHaveLength(1);
     expect(harness.envelopes[0]).toMatchObject({
       eventType: "candidate.create",
-      outcome: { accepted: true },
+      outcome: {
+        accepted: true,
+        businessObjectType: "candidate",
+      },
     });
-    expect(harness.envelopes[0]?.outcome.businessObjectType).toBeUndefined();
-    expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBeUndefined();
+    expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBe(
+      harness.envelopes[0]?.correlation?.sourceEventIdHash,
+    );
 
     const serialised = JSON.stringify(harness.envelopes);
     expect(serialised).toContain("candidate_email");

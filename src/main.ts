@@ -1,10 +1,6 @@
 import { buildCandidateApp } from "./app.js";
-import { createConfiguredCollector } from "./seamward.js";
 
-const { collector, integrationKey } = createConfiguredCollector();
 const { app } = buildCandidateApp({
-  collector,
-  integrationKey,
   enableTestControls: process.env.ENABLE_TEST_CONTROLS === "true",
 });
 

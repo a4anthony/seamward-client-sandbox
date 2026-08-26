@@ -9,8 +9,6 @@
     "candidate.create": {
       "post": {
         "operationId": "candidateCreated",
-        "x-seamward-event-type": "candidate.create",
-        "x-seamward-route-template": "/webhooks/candidates",
         "requestBody": {
           "content": {
             "application/json": {
@@ -23,8 +21,6 @@
     "candidate.update": {
       "post": {
         "operationId": "candidateUpdated",
-        "x-seamward-event-type": "candidate.update",
-        "x-seamward-route-template": "/webhooks/candidates",
         "requestBody": {
           "content": {
             "application/json": {
@@ -37,8 +33,6 @@
     "candidate.status_changed": {
       "post": {
         "operationId": "candidateStatusChanged",
-        "x-seamward-event-type": "candidate.status_changed",
-        "x-seamward-route-template": "/webhooks/candidates/status",
         "requestBody": {
           "content": {
             "application/json": {
@@ -53,8 +47,6 @@
     "candidate.document_uploaded": {
       "post": {
         "operationId": "candidateDocumentUploaded",
-        "x-seamward-event-type": "candidate.document_uploaded",
-        "x-seamward-route-template": "/webhooks/documents",
         "requestBody": {
           "content": {
             "application/json": {

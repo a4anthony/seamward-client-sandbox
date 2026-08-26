@@ -1,3 +1,5 @@
+import type { Json } from "./json.js";
+
 export type ProviderVariant = "healthy" | "field-rename" | "type-change";
 export type CandidateOperation =
   | "candidate.create"
@@ -115,4 +117,3 @@ export async function sendCandidate(
     payload,
   };
 }
-import type { Json } from "@seamward/contracts";

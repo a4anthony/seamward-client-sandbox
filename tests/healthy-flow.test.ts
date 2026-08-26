@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("healthy candidate ingestion", () => {
-  it("persists the candidate and emits a bounded business outcome", async () => {
+  it("persists a valid candidate", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
     const payload = candidatePayload("healthy", "cand_healthy");
@@ -24,31 +24,5 @@ describe("healthy candidate ingestion", () => {
       emailAddress: "taylor@example.test",
       externalReference: "ATS-1001",
     });
-
-    await harness.collector.flush();
-    expect(harness.envelopes).toHaveLength(1);
-    expect(harness.envelopes[0]).toMatchObject({
-      eventType: "candidate.create",
-      deployment: {
-        service: "candidate-api",
-        release: "test-release",
-      },
-      outcome: {
-        accepted: true,
-        businessObjectType: "candidate",
-      },
-    });
-    expect(harness.envelopes[0]?.correlation?.sourceEventIdHash).toMatch(
-      /^sha256:/,
-    );
-    expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBe(
-      harness.envelopes[0]?.correlation?.sourceEventIdHash,
-    );
-
-    const serialised = JSON.stringify(harness.envelopes);
-    expect(serialised).not.toContain("Taylor Example");
-    expect(serialised).not.toContain("taylor@example.test");
-    expect(serialised).not.toContain("cand_healthy");
-    expect(serialised).not.toContain("ATS-1001");
   });
 });

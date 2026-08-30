@@ -13,4 +13,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-console.log(`Candidate API listening on http://127.0.0.1:${port}`);
+console.log(`Sandbox API listening on http://127.0.0.1:${port}`);

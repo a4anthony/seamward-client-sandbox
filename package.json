@@ -1,5 +1,5 @@
 {
-  "name": "candidate-ats-sandbox",
+  "name": "seamward-client-sandbox",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/main.ts",
+    "dev:test-controls": "ENABLE_TEST_CONTROLS=true tsx src/main.ts",
     "start": "node dist/src/main.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -22,6 +23,8 @@
     "send:baseline": "tsx scripts/send-behavioural-baseline.ts",
     "send:latency": "tsx scripts/send-latency-shift.ts",
     "send:retries": "tsx scripts/send-retry-anomaly.ts",
+    "send:payment": "tsx scripts/send-payment.ts",
+    "send:notification": "tsx scripts/send-notification.ts",
     "verify": "pnpm test && pnpm typecheck && pnpm build",
     "send:recovery": "tsx scripts/send-recovery.ts",
     "reset": "tsx scripts/reset.ts"

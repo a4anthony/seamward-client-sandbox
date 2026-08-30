@@ -1,0 +1,91 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Payment notifications",
+    "version": "1.0.0",
+    "description": "Inbound payment lifecycle notifications consumed by the sandbox."
+  },
+  "webhooks": {
+    "payment.succeeded": {
+      "post": {
+        "operationId": "paymentSucceeded",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentNotification" }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Payment notification accepted" }
+        }
+      }
+    },
+    "payment.failed": {
+      "post": {
+        "operationId": "paymentFailed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentNotification" }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Payment notification accepted" }
+        }
+      }
+    },
+    "payment.refunded": {
+      "post": {
+        "operationId": "paymentRefunded",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentNotification" }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Payment notification accepted" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PaymentNotification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "event_type",
+          "payment_id",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "payment.succeeded",
+              "payment.failed",
+              "payment.refunded"
+            ]
+          },
+          "payment_id": { "type": "string" },
+          "amount": { "type": "integer", "minimum": 0 },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          }
+        }
+      }
+    }
+  }
+}

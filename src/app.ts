@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { registerCandidateWebhooks } from "./candidate-ats-webhooks.js";
 import { CandidateStore, type Candidate } from "./candidate-store.js";
 import {
   FailureControls,
@@ -6,6 +7,10 @@ import {
   type FailureMode,
 } from "./failure-controls.js";
 import type { Json } from "./json.js";
+import {
+  PaymentStore,
+  registerPaymentWebhooks,
+} from "./payment-notifications-webhooks.js";
 
 type CandidateEventType =
   | "candidate.create"
@@ -66,6 +71,7 @@ export function buildCandidateApp({
 }: BuildCandidateAppOptions = {}) {
   const app = Fastify({ logger: false });
   const candidates = new CandidateStore();
+  const payments = new PaymentStore();
   const failures = new FailureControls(initialFailureMode);
 
   async function handleCandidate(payload: Json): Promise<WebhookResult> {
@@ -147,21 +153,16 @@ export function buildCandidateApp({
     },
   );
 
-  async function dispatch(
-    request: { body: unknown },
-    reply: { code(statusCode: number): { send(value: unknown): unknown } },
-  ) {
-    const result = await handleCandidate(request.body as Json);
-    const { candidateId } = eventIdentity(request.body as Json);
-    return reply.code(result.statusCode).send({
+  registerCandidateWebhooks(app, async (payload) => {
+    const result = await handleCandidate(payload);
+    const { candidateId } = eventIdentity(payload);
+    return {
+      statusCode: result.statusCode,
       received: result.accepted,
       persisted: Boolean(candidateId && candidates.get(candidateId)),
-    });
-  }
-
-  app.post("/webhooks/candidates", dispatch);
-  app.post("/webhooks/candidates/status", dispatch);
-  app.post("/webhooks/documents", dispatch);
+    };
+  });
+  registerPaymentWebhooks(app, payments);
 
   if (enableTestControls) {
     app.post("/test/failure-mode", async (request, reply) => {
@@ -176,9 +177,10 @@ export function buildCandidateApp({
     app.post("/test/reset", async () => {
       failures.set("none");
       candidates.clear();
+      payments.clear();
       return { reset: true };
     });
   }
 
-  return { app, candidates, failures };
+  return { app, candidates, payments, failures };
 }

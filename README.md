@@ -1,21 +1,18 @@
-# Candidate ATS Sandbox
+# Seamward Client Sandbox
 
-A standalone TypeScript service that receives synthetic candidate webhooks. It is intentionally small, production-shaped, and independent of any monitoring or observability product.
+A standalone TypeScript service with three production-shaped integration boundaries. The checked-in baseline intentionally contains no Seamward collector, generated setup files, MCP configuration, or runtime credentials. It can therefore be used repeatedly to test automatic Seamward setup from a clean repository.
 
-## What the service does
+## Integrations in the baseline
 
-The API accepts four candidate operations:
+| Integration | Direction | Protocol | Source boundary | Contract |
+| --- | --- | --- | --- | --- |
+| Candidate ATS | Inbound | HTTP webhook | `src/candidate-ats-webhooks.ts` | `contracts/candidate-ats-v1.openapi.json` |
+| Payment notifications | Inbound | HTTP webhook | `src/payment-notifications-webhooks.ts` | `contracts/payment-notifications-v1.openapi.json` |
+| Customer notifications | Outbound | HTTP API | `src/customer-notifications.ts` | `contracts/customer-notifications-v1.openapi.json` |
 
-| Operation | Route | Result |
-| --- | --- | --- |
-| `candidate.create` | `POST /webhooks/candidates` | Creates a candidate |
-| `candidate.update` | `POST /webhooks/candidates` | Updates a candidate |
-| `candidate.status_changed` | `POST /webhooks/candidates/status` | Changes candidate status |
-| `candidate.document_uploaded` | `POST /webhooks/documents` | Records a document |
+Candidate ATS accepts create, update, status change, and document upload events. Payment notifications accepts succeeded, failed, and refunded events. Customer notifications calls a provider's `POST /v1/messages` API.
 
-The OpenAPI description lives in `contracts/candidate-ats-v1.openapi.json`.
-
-The sandbox also provides deterministic test controls for authentication failures, slow processing, and silent success responses. All data is synthetic and stored in memory.
+All test data is synthetic. Candidate and payment state is stored in memory.
 
 ## Requirements
 
@@ -28,26 +25,37 @@ The sandbox also provides deterministic test controls for authentication failure
 pnpm install --frozen-lockfile
 ```
 
-The service uses port `4200` by default. To enable the synthetic failure controls, set `ENABLE_TEST_CONTROLS=true` in your local runtime configuration.
-
 ## Run
 
 ```bash
 pnpm dev
 ```
 
-The default address is `http://127.0.0.1:4200`.
+The default address is `http://127.0.0.1:4200`. To use the synthetic failure controls, set `ENABLE_TEST_CONTROLS=true` in your local runtime configuration or run:
 
-From another terminal, send healthy traffic:
+```bash
+pnpm dev:test-controls
+```
+
+## Send test traffic
+
+With the sandbox running in another terminal, exercise both inbound integrations:
 
 ```bash
 pnpm send:healthy
 pnpm send:update
 pnpm send:status
 pnpm send:document
+pnpm send:payment
 ```
 
-Trigger controlled scenarios:
+Exercise the outbound customer notification integration. This script starts a temporary local provider, sends one notification, and then shuts the provider down:
+
+```bash
+pnpm send:notification
+```
+
+Trigger controlled Candidate ATS scenarios:
 
 ```bash
 pnpm send:rename
@@ -56,19 +64,37 @@ pnpm send:latency
 pnpm send:retries
 ```
 
-Reset the in-memory state:
+Reset in-memory state:
 
 ```bash
 pnpm reset
 ```
 
-## Verify
+## Verify the baseline
 
 ```bash
 pnpm verify
 ```
 
-This runs the tests, TypeScript checks, and production build.
+This runs the complete test suite, TypeScript checks, and the production build.
+
+## Test automatic Seamward setup
+
+Install and authenticate the current alpha CLI, then configure the project:
+
+```bash
+npm install --global @seamward/cli@alpha
+seamward login
+seamward setup
+```
+
+Open Claude Code from this repository, reconnect the `seamward-setup` MCP server if prompted, and send this single prompt:
+
+```text
+Set up Seamward in this project.
+```
+
+The automatic setup should propose the three integrations listed above. Review the proposed local and remote changes before approving them.
 
 ## Docker
 

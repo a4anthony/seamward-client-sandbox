@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("provider schema changes", () => {
-  it("persists a renamed provider field through the approved adapter repair", async () => {
+  it("rejects a renamed provider field until the application is updated", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
 
@@ -18,54 +18,22 @@ describe("provider schema changes", () => {
       payload: candidatePayload("field-rename", "cand_renamed"),
     });
 
-    expect(response.statusCode).toBe(202);
-    expect(response.json()).toEqual({ received: true, persisted: true });
-    expect(harness.candidates.get("cand_renamed")).toMatchObject({
-      emailAddress: "taylor@example.test",
-      externalReference: "ATS-1001",
-    });
-
-    await harness.collector.flush();
-    expect(harness.envelopes).toHaveLength(1);
-    expect(harness.envelopes[0]).toMatchObject({
-      eventType: "candidate.create",
-      outcome: {
-        accepted: true,
-        businessObjectType: "candidate",
-      },
-    });
-    expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBe(
-      harness.envelopes[0]?.correlation?.sourceEventIdHash,
-    );
-
-    const serialised = JSON.stringify(harness.envelopes);
-    expect(serialised).toContain("candidate_email");
-    expect(serialised).not.toContain("taylor@example.test");
-    expect(serialised).not.toContain("cand_renamed");
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual({ received: false, persisted: false });
+    expect(harness.candidates.get("cand_renamed")).toBeNull();
   });
 
-  it("emits distinct structural fingerprints without transmitting field values", async () => {
+  it("rejects an incompatible primitive type", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
 
-    const healthy = candidatePayload("healthy", "cand_shape_1");
-    const renamed = candidatePayload("field-rename", "cand_shape_2");
-    const changedType = candidatePayload("type-change", "cand_shape_3");
+    const response = await harness.app.inject({
+      method: "POST",
+      url: "/webhooks/candidates",
+      payload: candidatePayload("type-change", "cand_type_change"),
+    });
 
-    for (const payload of [healthy, renamed, changedType]) {
-      await harness.app.inject({
-        method: "POST",
-        url: "/webhooks/candidates",
-        payload,
-      });
-    }
-    await harness.collector.flush();
-
-    expect(
-      new Set(
-        harness.envelopes.map((event) => event.contract.observedFingerprint),
-      ).size,
-    ).toBe(3);
-    expect(JSON.stringify(harness.envelopes)).not.toContain("example.test");
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual({ received: false, persisted: false });
   });
 });

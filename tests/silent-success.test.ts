@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("silent-success failure", () => {
-  it("returns success without producing the expected candidate outcome", async () => {
+  it("returns success without persisting the candidate", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
     harness.failures.set("silent-success");
@@ -21,14 +21,5 @@ describe("silent-success failure", () => {
     expect(response.statusCode).toBe(202);
     expect(response.json()).toEqual({ received: true, persisted: false });
     expect(harness.candidates.get("cand_missing")).toBeNull();
-
-    await harness.collector.flush();
-    expect(harness.envelopes).toHaveLength(1);
-    expect(harness.envelopes[0]).toMatchObject({
-      eventType: "candidate.create",
-      outcome: { accepted: true },
-    });
-    expect(harness.envelopes[0]?.outcome.businessObjectType).toBeUndefined();
-    expect(harness.envelopes[0]?.outcome.businessObjectIdHash).toBeUndefined();
   });
 });

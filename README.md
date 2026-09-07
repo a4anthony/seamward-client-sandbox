@@ -1,215 +1,105 @@
 # Seamward Client Sandbox
 
-A standalone, production-shaped ATS webhook consumer for demonstrating the full Seamward contract and incident pipeline against a real external repository.
+A standalone TypeScript service with three production-shaped integration boundaries. The checked-in baseline intentionally contains no Seamward collector, generated setup files, MCP configuration, or runtime credentials. It can therefore be used repeatedly to test automatic Seamward setup from a clean repository.
 
-The sandbox deliberately lives outside the Seamward monorepo. It installs extracted, versioned collector artifacts from `vendor/` and runs without workspace links.
+## Integrations in the baseline
 
-## What it demonstrates
+| Integration | Direction | Protocol | Source boundary | Contract |
+| --- | --- | --- | --- | --- |
+| Candidate ATS | Inbound | HTTP webhook | `src/candidate-ats-webhooks.ts` | `contracts/candidate-ats-v1.openapi.json` |
+| Payment notifications | Inbound | HTTP webhook | `src/payment-notifications-webhooks.ts` | `contracts/payment-notifications-v1.openapi.json` |
+| Customer notifications | Outbound | HTTP API | `src/customer-notifications.ts` | `contracts/customer-notifications-v1.openapi.json` |
 
-The `Candidate ATS` integration contains four independently matched operations:
+Candidate ATS accepts create, update, status change, and document upload events. Payment notifications accepts succeeded, failed, and refunded events. Customer notifications calls a provider's `POST /v1/messages` API.
 
-| Operation                     | Route                         | Business result   |
-| ----------------------------- | ----------------------------- | ----------------- |
-| `candidate.create`            | `/webhooks/candidates`        | Candidate created |
-| `candidate.update`            | `/webhooks/candidates`        | Candidate updated |
-| `candidate.status_changed`    | `/webhooks/candidates/status` | Status updated    |
-| `candidate.document_uploaded` | `/webhooks/documents`         | Document attached |
-
-The repository contains three immutable OpenAPI versions:
-
-| Version                     | Intended lifecycle | Purpose                                                |
-| --------------------------- | ------------------ | ------------------------------------------------------ |
-| `candidate-ats-v1`          | Initial active     | Original four-operation baseline                       |
-| `candidate-ats-v2`          | Compatible draft   | Adds optional `source_system` metadata                 |
-| `candidate-ats-v3-breaking` | Breaking draft     | Renames `email_address` to `candidate_email` on create |
-
-Only one version is active at a time. Each version contains several operation contracts. Registering a draft does not change analysis until that version is explicitly activated.
-
-Controlled scenarios include:
-
-- healthy create, update, status, and document operations;
-- provider field rename;
-- provider primitive type change;
-- silent HTTP success without a business outcome;
-- authentication failure;
-- median latency shift traffic;
-- correlated retry-rate anomaly traffic;
-- contract promotion and rollback.
+All test data is synthetic. Candidate and payment state is stored in memory.
 
 ## Requirements
 
 - Node.js 22 or newer
 - pnpm 11.19.0
-- a Seamward workspace and integration
-- a public Connection key and a server-side ingest token
-- a workspace API key with `contracts:read`, `contracts:write`, and `contracts:activate`
 
 ## Install
 
 ```bash
 pnpm install --frozen-lockfile
-cp .env.example .env
 ```
 
-Fill the placeholders in your local `.env`. Never commit that file. Copy the public Connection key and ingest token from the integration's Collector setup tab. The sandbox discovers the local Git commit automatically; supported deployment platforms also provide commit metadata automatically.
-
-Start the service:
+## Run
 
 ```bash
 pnpm dev
 ```
 
-The default address is `http://127.0.0.1:4200`. The collector sends privacy-safe envelope v0.2 observations to `https://api.seamward.com/ingest` unless configured otherwise.
-
-The same service can run in Docker without copying `.env` into the image:
+The default address is `http://127.0.0.1:4200`. To use the synthetic failure controls, set `ENABLE_TEST_CONTROLS=true` in your local runtime configuration or run:
 
 ```bash
-docker compose up --build
+pnpm dev:test-controls
 ```
 
-## Register the contract versions
+## Send test traffic
 
-Create a scoped API key in Workspace settings, set `SEAMWARD_API_KEY`, then run:
-
-```bash
-pnpm contract:bootstrap
-```
-
-This command idempotently registers all three versions. If the integration has no active version, it activates `candidate-ats-v1`. It never replaces an existing active version implicitly.
-
-The public Connection key already contains the non-secret integration identity used by these commands, so `SEAMWARD_INTEGRATION_ID` is not required. You can still set it as an explicit override for advanced automation.
-
-Inspect the lifecycle:
-
-```bash
-pnpm contract:list
-```
-
-Register one version explicitly:
-
-```bash
-pnpm contract:register -- candidate-ats-v2
-```
-
-Promote a draft:
-
-```bash
-pnpm contract:activate -- candidate-ats-v2
-```
-
-Roll back by reactivating a superseded immutable version:
-
-```bash
-pnpm contract:activate -- candidate-ats-v1
-```
-
-The activation command reads the active version first and sends it as an optimistic concurrency precondition.
-
-## Send operation traffic
+With the sandbox running in another terminal, exercise both inbound integrations:
 
 ```bash
 pnpm send:healthy
 pnpm send:update
 pnpm send:status
 pnpm send:document
+pnpm send:payment
 ```
 
-Each observation carries a deterministic operation identity, payload location, attempt number, deployment context, and privacy-safe correlation namespace.
+Exercise the outbound customer notification integration. This script starts a temporary local provider, sends one notification, and then shuts the provider down:
 
-## Trigger structural and outcome failures
+```bash
+pnpm send:notification
+```
 
-Provider field rename:
+Trigger controlled Candidate ATS scenarios:
 
 ```bash
 pnpm send:rename
-```
-
-The provider sends `candidate_email` instead of `email_address`. The consumer still returns HTTP `202`, but it does not persist the candidate or emit the expected `candidate` business outcome. This creates structural evidence against v1 and can also expire an expected-outcome rule.
-
-Silent success:
-
-```bash
 pnpm send:silent
+pnpm send:latency
+pnpm send:retries
 ```
 
-Recommended outcome rule:
-
-```text
-When candidate.create is observed, a candidate must appear within 1 minute.
-```
-
-Recover a failed candidate using the printed ID:
-
-```bash
-pnpm send:recovery -- cand_123
-```
-
-Reset local state:
+Reset in-memory state:
 
 ```bash
 pnpm reset
 ```
 
-## Generate behavioural evidence
-
-Seamward compares the current 15-minute window with the preceding 24-hour baseline. Establish at least 30 healthy samples:
+## Verify the baseline
 
 ```bash
-pnpm send:baseline
+pnpm verify
 ```
 
-Allow those observations to leave the current 15-minute window before generating a current anomaly.
+This runs the complete test suite, TypeScript checks, and the production build.
 
-Latency shift:
+## Test automatic Seamward setup
+
+Install and authenticate the current alpha CLI, then configure the project:
 
 ```bash
-pnpm send:latency
+npm install --global @seamward/cli@alpha
+seamward login
+seamward setup
 ```
 
-This sends 30 operations with a deterministic 175 ms processing delay.
+Open Claude Code from this repository, reconnect the `seamward-setup` MCP server if prompted, and send this single prompt:
 
-Retry anomaly:
+```text
+Set up Seamward in this project.
+```
+
+The automatic setup should propose the three integrations listed above. Review the proposed local and remote changes before approving them.
+
+## Docker
 
 ```bash
-pnpm send:retries
+docker compose up --build
 ```
 
-This sends 30 correlated logical operations. Ten receive a second attempt, producing a 33.3 percent retry rate without exposing the idempotency values.
-
-## Preflight
-
-With the service running and all local credentials configured:
-
-```bash
-pnpm preflight
-```
-
-The check verifies:
-
-- the sandbox health endpoint;
-- bounded collector counters;
-- public Contract API access;
-- an active contract version;
-- at least four active operations.
-
-It never prints credentials.
-
-## Verification
-
-```bash
-pnpm test
-pnpm typecheck
-pnpm build
-```
-
-Tests prove operation matching, contract-version differences, retry correlation, envelope v0.2 metadata, outcome behavior, and that candidate values do not leave the process.
-
-## Collector prerelease
-
-This repository vendors `@seamward/collector@0.1.0-alpha.2` and `@seamward/contracts@0.1.0-alpha.2`, built from the official Seamward monorepo. Tarballs and checksums are retained in `vendor/` until the public npm distribution is available.
-
-The alpha collector is for evaluation and demonstration, not a production support commitment.
-
-## Founder demo
-
-Follow `DEMO_RUNBOOK.md` for the exact contract lifecycle, traffic sequence, expected UI states, repair approval, GitHub delivery, and reset procedure.
+The container exposes the service on port `4200`.

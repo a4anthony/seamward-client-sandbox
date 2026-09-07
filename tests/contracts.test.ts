@@ -1,107 +1,44 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  compareShapeToSchema,
-  importOpenApiOperations,
-  resolveContractOperation,
-  shapeOf,
-} from "@seamward/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  candidatePayload,
-  type CandidateOperation,
-} from "../src/provider-simulator.js";
 
-const versions = [
-  "candidate-ats-v1.openapi.json",
-  "candidate-ats-v2.openapi.json",
-  "candidate-ats-v3-breaking.openapi.json",
-] as const;
-
-function contract(file: (typeof versions)[number]) {
+function readContract(file: string): {
+  paths?: Record<string, unknown>;
+  webhooks?: Record<string, unknown>;
+} {
   return JSON.parse(
     readFileSync(resolve(process.cwd(), "contracts", file), "utf8"),
-  ) as Record<string, unknown>;
-}
-
-function operations(file: (typeof versions)[number]) {
-  return importOpenApiOperations(contract(file), {
-    direction: "inbound",
-    protocol: "http-webhook",
-  });
-}
-
-function observation(operation: CandidateOperation) {
-  return {
-    direction: "inbound",
-    protocol: "http-webhook",
-    method: "POST",
-    routeTemplate:
-      operation === "candidate.status_changed"
-        ? "/webhooks/candidates/status"
-        : operation === "candidate.document_uploaded"
-          ? "/webhooks/documents"
-          : "/webhooks/candidates",
-    eventType: operation,
-    statusCode: 202,
-    payloadLocation: "message" as const,
+  ) as {
+    paths?: Record<string, unknown>;
+    webhooks?: Record<string, unknown>;
   };
 }
 
-describe("versioned multi-operation contracts", () => {
-  it.each(versions)("imports four deterministic operations from %s", (file) => {
-    const imported = operations(file);
-    expect(imported).toHaveLength(4);
-    expect(
-      new Set(imported.map((operation) => operation.operationKey)).size,
-    ).toBe(4);
+describe("sandbox OpenAPI documents", () => {
+  it("describes the four webhook operations exposed by the service", () => {
+    const document = readContract("candidate-ats-v1.openapi.json");
+
+    expect(Object.keys(document.webhooks ?? {}).sort()).toEqual([
+      "candidate.create",
+      "candidate.document_uploaded",
+      "candidate.status_changed",
+      "candidate.update",
+    ]);
   });
 
-  it.each([
-    "candidate.create",
-    "candidate.update",
-    "candidate.status_changed",
-    "candidate.document_uploaded",
-  ] as const)(
-    "matches healthy %s traffic to exactly one v1 operation",
-    (eventType) => {
-      const decision = resolveContractOperation(
-        operations("candidate-ats-v1.openapi.json"),
-        observation(eventType),
-      );
-      expect(decision.kind).toBe("matched");
-      if (decision.kind !== "matched") return;
-      expect(
-        compareShapeToSchema(
-          shapeOf(candidatePayload({ operation: eventType })),
-          decision.operation.schema,
-        ),
-      ).toEqual([]);
-    },
-  );
+  it("describes the three payment notification webhooks", () => {
+    const document = readContract("payment-notifications-v1.openapi.json");
 
-  it("proves the breaking v3 create schema rejects the v1 email field", () => {
-    const decision = resolveContractOperation(
-      operations("candidate-ats-v3-breaking.openapi.json"),
-      observation("candidate.create"),
-    );
-    expect(decision.kind).toBe("matched");
-    if (decision.kind !== "matched") return;
-    const findings = compareShapeToSchema(
-      shapeOf(candidatePayload({ operation: "candidate.create" })),
-      decision.operation.schema,
-    );
-    expect(findings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: "missing-required-field",
-          path: "$.candidate_email",
-        }),
-        expect.objectContaining({
-          kind: "unexpected-field",
-          path: "$.email_address",
-        }),
-      ]),
-    );
+    expect(Object.keys(document.webhooks ?? {}).sort()).toEqual([
+      "payment.failed",
+      "payment.refunded",
+      "payment.succeeded",
+    ]);
+  });
+
+  it("describes the outbound customer notification API", () => {
+    const document = readContract("customer-notifications-v1.openapi.json");
+
+    expect(Object.keys(document.paths ?? {})).toEqual(["/v1/messages"]);
   });
 });

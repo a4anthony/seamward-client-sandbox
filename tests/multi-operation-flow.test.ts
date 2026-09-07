@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("multi-operation candidate lifecycle", () => {
-  it("records create, update, status, and document operations separately", async () => {
+  it("handles create, update, status, and document operations", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
     const id = "cand_lifecycle";
@@ -33,24 +33,9 @@ describe("multi-operation candidate lifecycle", () => {
       status: "screening",
       documentCount: 1,
     });
-
-    await harness.collector.flush();
-    expect(harness.envelopes.map((item) => item.eventType)).toEqual(
-      cases.map(([, operation]) => operation),
-    );
-    expect(
-      harness.envelopes.every((item) => item.envelopeVersion === "0.2"),
-    ).toBe(true);
-    expect(
-      harness.envelopes.every(
-        (item) =>
-          item.operationIdentityVersion === "1" &&
-          item.transport.payloadLocation === "message",
-      ),
-    ).toBe(true);
   });
 
-  it("correlates a second provider attempt without exposing its idempotency key", async () => {
+  it("accepts a repeated provider attempt idempotently", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
     const payload = candidatePayload({ id: "cand_retry" });
@@ -62,15 +47,6 @@ describe("multi-operation candidate lifecycle", () => {
         payload,
       });
     }
-    await harness.collector.flush();
-
-    expect(harness.envelopes.map((item) => item.transport.attempt)).toEqual([
-      1, 2,
-    ]);
-    expect(harness.envelopes[0]?.correlation.idempotencyKeyHash).toBe(
-      harness.envelopes[1]?.correlation.idempotencyKeyHash,
-    );
-    expect(harness.envelopes[0]?.correlation.hashNamespace).toBeDefined();
-    expect(JSON.stringify(harness.envelopes)).not.toContain("cand_retry");
+    expect(harness.candidates.get("cand_retry")).not.toBeNull();
   });
 });

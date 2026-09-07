@@ -1,0 +1,56 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Customer notifications",
+    "version": "1.0.0",
+    "description": "Outbound customer messaging API called by the sandbox."
+  },
+  "servers": [{ "url": "https://notifications.example.test" }],
+  "paths": {
+    "/v1/messages": {
+      "post": {
+        "operationId": "sendCustomerNotification",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CustomerNotification" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Notification accepted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AcceptedMessage" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CustomerNotification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["customer_id", "channel", "template"],
+        "properties": {
+          "customer_id": { "type": "string" },
+          "channel": { "type": "string", "enum": ["email", "sms"] },
+          "template": { "type": "string" }
+        }
+      },
+      "AcceptedMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["message_id"],
+        "properties": {
+          "message_id": { "type": "string" }
+        }
+      }
+    }
+  }
+}

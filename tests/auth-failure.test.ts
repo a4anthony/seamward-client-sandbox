@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe("provider authentication failures", () => {
-  it("preserves the failed response and records a rejected outcome", async () => {
+  it("preserves the failed response", async () => {
     const harness = createHarness();
     close.push(() => harness.app.close());
     harness.failures.set("auth-failure");
@@ -20,11 +20,5 @@ describe("provider authentication failures", () => {
     });
     expect(response.statusCode).toBe(401);
     expect(response.json()).toEqual({ received: false, persisted: false });
-
-    await harness.collector.flush();
-    expect(harness.envelopes[0]).toMatchObject({
-      transport: { statusCode: 401 },
-      outcome: { accepted: false },
-    });
   });
 });
